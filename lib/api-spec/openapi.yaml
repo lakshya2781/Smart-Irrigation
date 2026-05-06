@@ -3,20 +3,44 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Smart Irrigation System API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: dashboard
+    description: Dashboard summary
+  - name: zones
+    description: Irrigation zones
+  - name: pumps
+    description: Pump control
+  - name: sensors
+    description: Sensor readings
+  - name: weather
+    description: Weather data
+  - name: irrigation
+    description: Irrigation logs
+  - name: alerts
+    description: System alerts
+  - name: crops
+    description: Crop database
+  - name: soilTypes
+    description: Soil type reference
+  - name: ai
+    description: AI recommendations
+  - name: waterUsage
+    description: Water usage statistics
+  - name: esp32
+    description: ESP32 data ingestion
+
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +48,392 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /dashboard/summary:
+    get:
+      operationId: getDashboardSummary
+      tags: [dashboard]
+      summary: Get dashboard overview statistics
+      responses:
+        "200":
+          description: Dashboard summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+
+  /zones:
+    get:
+      operationId: getZones
+      tags: [zones]
+      summary: List all irrigation zones
+      responses:
+        "200":
+          description: List of zones
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Zone"
+
+  /zones/{id}:
+    get:
+      operationId: getZone
+      tags: [zones]
+      summary: Get zone details
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Zone details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Zone"
+    patch:
+      operationId: updateZone
+      tags: [zones]
+      summary: Update zone configuration
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateZoneBody"
+      responses:
+        "200":
+          description: Updated zone
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Zone"
+
+  /zones/{id}/moisture-trend:
+    get:
+      operationId: getZoneMoistureTrend
+      tags: [zones]
+      summary: Get moisture trend for a zone
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: hours
+          in: query
+          schema:
+            type: integer
+            default: 24
+      responses:
+        "200":
+          description: Moisture trend data
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MoistureTrendPoint"
+
+  /pumps:
+    get:
+      operationId: getPumps
+      tags: [pumps]
+      summary: List all pumps with status
+      responses:
+        "200":
+          description: List of pumps
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Pump"
+
+  /pumps/{id}/control:
+    post:
+      operationId: controlPump
+      tags: [pumps]
+      summary: Control pump state (on/off/override)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PumpControlBody"
+      responses:
+        "200":
+          description: Updated pump state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Pump"
+
+  /sensors/latest:
+    get:
+      operationId: getLatestSensorReadings
+      tags: [sensors]
+      summary: Get latest readings from all sensors
+      responses:
+        "200":
+          description: Latest sensor readings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SensorReadings"
+
+  /sensors/history:
+    get:
+      operationId: getSensorHistory
+      tags: [sensors]
+      summary: Get historical sensor data
+      parameters:
+        - name: hours
+          in: query
+          schema:
+            type: integer
+            default: 24
+        - name: zoneId
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Sensor history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SensorHistoryRecord"
+
+  /esp32/ingest:
+    post:
+      operationId: ingestEsp32Data
+      tags: [esp32]
+      summary: Ingest sensor data from ESP32
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Esp32IngestBody"
+      responses:
+        "200":
+          description: Data accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IngestResponse"
+
+  /weather/current:
+    get:
+      operationId: getCurrentWeather
+      tags: [weather]
+      summary: Get current weather data
+      responses:
+        "200":
+          description: Current weather
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WeatherData"
+
+  /weather/forecast:
+    get:
+      operationId: getWeatherForecast
+      tags: [weather]
+      summary: Get weather forecast (5 days)
+      responses:
+        "200":
+          description: Weather forecast
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/WeatherForecastDay"
+
+  /irrigation/logs:
+    get:
+      operationId: getIrrigationLogs
+      tags: [irrigation]
+      summary: Get irrigation action logs
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: zoneId
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Irrigation logs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/IrrigationLog"
+    post:
+      operationId: createIrrigationLog
+      tags: [irrigation]
+      summary: Create manual irrigation log entry
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateIrrigationLogBody"
+      responses:
+        "201":
+          description: Log created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IrrigationLog"
+
+  /alerts:
+    get:
+      operationId: getAlerts
+      tags: [alerts]
+      summary: Get active alerts
+      parameters:
+        - name: acknowledged
+          in: query
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: Alerts list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Alert"
+
+  /alerts/{id}/acknowledge:
+    patch:
+      operationId: acknowledgeAlert
+      tags: [alerts]
+      summary: Acknowledge or dismiss an alert
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Updated alert
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Alert"
+
+  /crops:
+    get:
+      operationId: getCrops
+      tags: [crops]
+      summary: List all supported crops
+      responses:
+        "200":
+          description: Crop list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Crop"
+
+  /crops/{id}:
+    get:
+      operationId: getCrop
+      tags: [crops]
+      summary: Get crop details
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Crop details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Crop"
+
+  /soil-types:
+    get:
+      operationId: getSoilTypes
+      tags: [soilTypes]
+      summary: List all soil types
+      responses:
+        "200":
+          description: Soil types list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SoilType"
+
+  /ai/recommendations:
+    get:
+      operationId: getAiRecommendations
+      tags: [ai]
+      summary: Get AI-based irrigation recommendations
+      responses:
+        "200":
+          description: AI recommendations
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiRecommendations"
+
+  /water-usage/stats:
+    get:
+      operationId: getWaterUsageStats
+      tags: [waterUsage]
+      summary: Get water usage statistics over time
+      parameters:
+        - name: days
+          in: query
+          schema:
+            type: integer
+            default: 7
+      responses:
+        "200":
+          description: Water usage stats
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/WaterUsageStat"
+
 components:
   schemas:
     HealthStatus:
@@ -31,6 +441,524 @@ components:
       properties:
         status:
           type: string
+      required: [status]
+
+    DashboardSummary:
+      type: object
+      properties:
+        avgSoilMoisture:
+          type: number
+        tankLevelPercent:
+          type: number
+        temperature:
+          type: number
+        humidity:
+          type: number
+        activePumps:
+          type: integer
+        activeAlerts:
+          type: integer
+        rainProbability:
+          type: number
+        irrigationMode:
+          type: string
+          enum: [auto, manual, override]
+        waterLoggingDetected:
+          type: boolean
+        systemStatus:
+          type: string
+          enum: [online, offline, degraded]
+        lastUpdated:
+          type: string
       required:
+        - avgSoilMoisture
+        - tankLevelPercent
+        - temperature
+        - humidity
+        - activePumps
+        - activeAlerts
+        - rainProbability
+        - irrigationMode
+        - waterLoggingDetected
+        - systemStatus
+        - lastUpdated
+
+    Zone:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        cropId:
+          type: integer
+        cropName:
+          type: string
+        soilTypeId:
+          type: integer
+        soilTypeName:
+          type: string
+        currentMoisture:
+          type: number
+        targetMoistureMin:
+          type: number
+        targetMoistureMax:
+          type: number
+        pumpId:
+          type: integer
+        pumpStatus:
+          type: string
+          enum: [on, off, override]
+        lastIrrigated:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [optimal, dry, wet, waterlogged, unknown]
+      required:
+        - id
+        - name
+        - cropId
+        - cropName
+        - soilTypeId
+        - soilTypeName
+        - currentMoisture
+        - targetMoistureMin
+        - targetMoistureMax
+        - pumpId
+        - pumpStatus
         - status
 
+    UpdateZoneBody:
+      type: object
+      properties:
+        name:
+          type: string
+        cropId:
+          type: integer
+        soilTypeId:
+          type: integer
+        targetMoistureMin:
+          type: number
+        targetMoistureMax:
+          type: number
+
+    MoistureTrendPoint:
+      type: object
+      properties:
+        timestamp:
+          type: string
+        moisture:
+          type: number
+      required: [timestamp, moisture]
+
+    Pump:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        zoneId:
+          type: integer
+        zoneName:
+          type: string
+        status:
+          type: string
+          enum: [on, off, override]
+        isManualOverride:
+          type: boolean
+        driverChannel:
+          type: string
+        runtimeToday:
+          type: number
+        lastToggled:
+          type: string
+          nullable: true
+      required:
+        - id
+        - name
+        - zoneId
+        - zoneName
+        - status
+        - isManualOverride
+        - driverChannel
+        - runtimeToday
+
+    PumpControlBody:
+      type: object
+      properties:
+        action:
+          type: string
+          enum: [on, off, auto]
+        isOverride:
+          type: boolean
+      required: [action]
+
+    SensorReadings:
+      type: object
+      properties:
+        zones:
+          type: array
+          items:
+            type: object
+            properties:
+              zoneId:
+                type: integer
+              zoneName:
+                type: string
+              moisture:
+                type: number
+              status:
+                type: string
+            required: [zoneId, zoneName, moisture, status]
+        temperature:
+          type: number
+        humidity:
+          type: number
+        tankLevelPercent:
+          type: number
+        waterLoggingDetected:
+          type: boolean
+        timestamp:
+          type: string
+      required:
+        - zones
+        - temperature
+        - humidity
+        - tankLevelPercent
+        - waterLoggingDetected
+        - timestamp
+
+    SensorHistoryRecord:
+      type: object
+      properties:
+        id:
+          type: integer
+        zoneId:
+          type: integer
+          nullable: true
+        moisture:
+          type: number
+          nullable: true
+        temperature:
+          type: number
+          nullable: true
+        humidity:
+          type: number
+          nullable: true
+        tankLevelPercent:
+          type: number
+          nullable: true
+        waterLoggingDetected:
+          type: boolean
+          nullable: true
+        recordedAt:
+          type: string
+      required: [id, recordedAt]
+
+    Esp32IngestBody:
+      type: object
+      properties:
+        moisture1:
+          type: number
+        moisture2:
+          type: number
+        moisture3:
+          type: number
+        moisture4:
+          type: number
+        temperature:
+          type: number
+        humidity:
+          type: number
+        tankLevel:
+          type: number
+        waterLogging:
+          type: boolean
+        deviceId:
+          type: string
+      required:
+        - moisture1
+        - moisture2
+        - moisture3
+        - moisture4
+        - temperature
+        - humidity
+        - tankLevel
+        - waterLogging
+
+    IngestResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        pumpCommands:
+          type: array
+          items:
+            type: object
+            properties:
+              pumpId:
+                type: integer
+              action:
+                type: string
+            required: [pumpId, action]
+        message:
+          type: string
+      required: [success, pumpCommands, message]
+
+    WeatherData:
+      type: object
+      properties:
+        temperature:
+          type: number
+        humidity:
+          type: number
+        description:
+          type: string
+        rainProbability:
+          type: number
+        windSpeed:
+          type: number
+        location:
+          type: string
+        timestamp:
+          type: string
+      required:
+        - temperature
+        - humidity
+        - description
+        - rainProbability
+        - windSpeed
+        - location
+        - timestamp
+
+    WeatherForecastDay:
+      type: object
+      properties:
+        date:
+          type: string
+        highTemp:
+          type: number
+        lowTemp:
+          type: number
+        rainProbability:
+          type: number
+        description:
+          type: string
+        irrigationRecommended:
+          type: boolean
+      required:
+        - date
+        - highTemp
+        - lowTemp
+        - rainProbability
+        - description
+        - irrigationRecommended
+
+    IrrigationLog:
+      type: object
+      properties:
+        id:
+          type: integer
+        zoneId:
+          type: integer
+        zoneName:
+          type: string
+        pumpId:
+          type: integer
+        action:
+          type: string
+          enum: [started, stopped]
+        trigger:
+          type: string
+          enum: [auto, manual, override, ai]
+        durationSeconds:
+          type: integer
+          nullable: true
+        soilMoistureBefore:
+          type: number
+          nullable: true
+        soilMoistureAfter:
+          type: number
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+      required:
+        - id
+        - zoneId
+        - zoneName
+        - pumpId
+        - action
+        - trigger
+        - createdAt
+
+    CreateIrrigationLogBody:
+      type: object
+      properties:
+        zoneId:
+          type: integer
+        pumpId:
+          type: integer
+        action:
+          type: string
+          enum: [started, stopped]
+        trigger:
+          type: string
+          enum: [auto, manual, override, ai]
+        durationSeconds:
+          type: integer
+        soilMoistureBefore:
+          type: number
+        soilMoistureAfter:
+          type: number
+        notes:
+          type: string
+      required: [zoneId, pumpId, action, trigger]
+
+    Alert:
+      type: object
+      properties:
+        id:
+          type: integer
+        type:
+          type: string
+          enum: [tank_empty, water_logging, sensor_anomaly, pump_failure, low_moisture, high_moisture]
+        severity:
+          type: string
+          enum: [info, warning, critical]
+        message:
+          type: string
+        zoneId:
+          type: integer
+          nullable: true
+        acknowledged:
+          type: boolean
+        createdAt:
+          type: string
+        acknowledgedAt:
+          type: string
+          nullable: true
+      required:
+        - id
+        - type
+        - severity
+        - message
+        - acknowledged
+        - createdAt
+
+    Crop:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        idealMoistureMin:
+          type: number
+        idealMoistureMax:
+          type: number
+        waterRequirementMm:
+          type: number
+        growthStages:
+          type: array
+          items:
+            type: string
+        currentStage:
+          type: string
+          nullable: true
+        description:
+          type: string
+      required:
+        - id
+        - name
+        - idealMoistureMin
+        - idealMoistureMax
+        - waterRequirementMm
+        - growthStages
+        - description
+
+    SoilType:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        waterRetentionCapacity:
+          type: number
+        drainageRate:
+          type: string
+          enum: [slow, medium, fast]
+        description:
+          type: string
+      required:
+        - id
+        - name
+        - waterRetentionCapacity
+        - drainageRate
+        - description
+
+    AiRecommendations:
+      type: object
+      properties:
+        overallDecision:
+          type: string
+          enum: [irrigate_full, irrigate_partial, skip_rain, skip_wet]
+        reasoning:
+          type: string
+        rainProbabilityFactor:
+          type: number
+        zones:
+          type: array
+          items:
+            type: object
+            properties:
+              zoneId:
+                type: integer
+              zoneName:
+                type: string
+              recommendation:
+                type: string
+                enum: [irrigate, skip, monitor]
+              reasoning:
+                type: string
+              suggestedDurationMinutes:
+                type: integer
+            required: [zoneId, zoneName, recommendation, reasoning, suggestedDurationMinutes]
+        generatedAt:
+          type: string
+      required:
+        - overallDecision
+        - reasoning
+        - rainProbabilityFactor
+        - zones
+        - generatedAt
+
+    WaterUsageStat:
+      type: object
+      properties:
+        date:
+          type: string
+        totalLiters:
+          type: number
+        totalMinutes:
+          type: integer
+        sessionCount:
+          type: integer
+        zoneBreakdown:
+          type: array
+          items:
+            type: object
+            properties:
+              zoneId:
+                type: integer
+              zoneName:
+                type: string
+              liters:
+                type: number
+            required: [zoneId, zoneName, liters]
+      required: [date, totalLiters, totalMinutes, sessionCount, zoneBreakdown]
