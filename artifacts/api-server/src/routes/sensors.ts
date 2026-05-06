@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { desc, sql } from "drizzle-orm";
 import { db, sensorReadingsTable, zonesTable, pumpsTable } from "@workspace/db";
+import { broadcast } from "../lib/broadcaster";
 import {
   GetLatestSensorReadingsResponse,
   GetSensorHistoryQueryParams,
@@ -141,6 +142,17 @@ router.post("/esp32/ingest", async (req, res): Promise<void> => {
       }
     }
   }
+
+  broadcast({
+    type: "sensor_update",
+    data: {
+      zones: zones.map((z, i) => ({ zoneId: z.id, moisture: moistureValues[i] })),
+      temperature: data.temperature,
+      humidity: data.humidity,
+      tankLevel: data.tankLevel,
+      pumpCommands,
+    },
+  });
 
   res.json(IngestEsp32DataResponse.parse({
     success: true,

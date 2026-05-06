@@ -12,6 +12,7 @@ import Alerts from "@/pages/Alerts";
 import History from "@/pages/History";
 import CropsConfig from "@/pages/CropsConfig";
 import NotFound from "@/pages/not-found";
+import { useRealtimeUpdates } from "@/hooks/useRealtimeUpdates";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -21,6 +22,11 @@ const queryClient = new QueryClient({
     },
   },
 });
+
+function RealtimeBridge() {
+  useRealtimeUpdates();
+  return null;
+}
 
 function Router() {
   return (
@@ -45,6 +51,7 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+          <RealtimeBridge />
           <Router />
         </WouterRouter>
         <Toaster />

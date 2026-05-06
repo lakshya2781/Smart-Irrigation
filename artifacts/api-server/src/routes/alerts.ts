@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { desc, eq } from "drizzle-orm";
 import { db, alertsTable } from "@workspace/db";
+import { broadcast } from "../lib/broadcaster";
 import {
   GetAlertsQueryParams,
   GetAlertsResponse,
@@ -75,7 +76,9 @@ router.patch("/alerts/:id/acknowledge", async (req, res): Promise<void> => {
     return;
   }
 
-  res.json(AcknowledgeAlertResponse.parse(formatAlert(alert)));
+  const formatted = formatAlert(alert);
+  broadcast({ type: "alert_acknowledged", data: { id: alert.id } });
+  res.json(AcknowledgeAlertResponse.parse(formatted));
 });
 
 export default router;

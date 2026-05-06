@@ -7,6 +7,7 @@ import {
   ControlPumpBody,
   ControlPumpResponse,
 } from "@workspace/api-zod";
+import { broadcast } from "../lib/broadcaster";
 
 const router: IRouter = Router();
 
@@ -129,7 +130,9 @@ router.post("/pumps/:id/control", async (req, res): Promise<void> => {
     .leftJoin(zonesTable, eq(pumpsTable.zoneId, zonesTable.id))
     .where(eq(pumpsTable.id, params.data.id));
 
-  res.json(ControlPumpResponse.parse(formatPump(updatedWithZone!)));
+  const formatted = formatPump(updatedWithZone!);
+  broadcast({ type: "pump_status", data: formatted });
+  res.json(ControlPumpResponse.parse(formatted));
 });
 
 export default router;
