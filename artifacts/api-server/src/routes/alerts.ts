@@ -23,7 +23,7 @@ function formatAlert(a: {
 }) {
   return {
     id: a.id,
-    type: a.type as "tank_empty" | "water_logging" | "sensor_anomaly" | "pump_failure" | "low_moisture" | "high_moisture",
+    type: a.type as "tank_empty" | "water_logging" | "sensor_anomaly" | "pump_failure" | "low_moisture" | "high_moisture" | "weather_update" | "crop_health" | "irrigation_complete",
     severity: a.severity as "info" | "warning" | "critical",
     message: a.message,
     zoneId: a.zoneId,

@@ -826,7 +826,7 @@ components:
           type: integer
         type:
           type: string
-          enum: [tank_empty, water_logging, sensor_anomaly, pump_failure, low_moisture, high_moisture]
+          enum: [tank_empty, water_logging, sensor_anomaly, pump_failure, low_moisture, high_moisture, weather_update, crop_health, irrigation_complete]
         severity:
           type: string
           enum: [info, warning, critical]

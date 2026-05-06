@@ -2,6 +2,7 @@ import http from "http";
 import app from "./app";
 import { logger } from "./lib/logger";
 import { createWebSocketServer } from "./lib/broadcaster";
+import { startSimulator } from "./lib/simulator";
 
 const rawPort = process.env["PORT"];
 
@@ -22,6 +23,7 @@ createWebSocketServer(server);
 
 server.listen(port, () => {
   logger.info({ port }, "Server listening");
+  startSimulator();
 });
 
 server.on("error", (err) => {

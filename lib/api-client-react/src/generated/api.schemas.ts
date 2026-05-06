@@ -262,6 +262,9 @@ export const AlertType = {
   pump_failure: "pump_failure",
   low_moisture: "low_moisture",
   high_moisture: "high_moisture",
+  weather_update: "weather_update",
+  crop_health: "crop_health",
+  irrigation_complete: "irrigation_complete",
 } as const;
 
 export type AlertSeverity = (typeof AlertSeverity)[keyof typeof AlertSeverity];
