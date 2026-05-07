@@ -12,6 +12,9 @@ import {
   getGetPumpsQueryKey,
   getGetCurrentWeatherQueryKey,
   getGetZonesQueryKey,
+  type Alert,
+  type Pump,
+  type Zone,
 } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -39,6 +42,19 @@ const alertTypeConfig: Record<AlertType, { icon: React.ComponentType<{ className
   crop_health:          { icon: Leaf,          label: "Crop Health",          color: "text-primary"    },
   irrigation_complete:  { icon: Waves,         label: "Irrigation Complete",  color: "text-teal-400"   },
 };
+
+function arrayFromQueryData<T>(value: unknown): T[] {
+  if (Array.isArray(value)) return value as T[];
+  if (!value || typeof value !== "object") return [];
+
+  const record = value as Record<string, unknown>;
+  for (const key of ["data", "items", "results"]) {
+    const nested = record[key];
+    if (Array.isArray(nested)) return nested as T[];
+  }
+
+  return [];
+}
 
 function MetricCard({
   label, value, unit, icon: Icon, iconColor, sub, href,
@@ -92,9 +108,13 @@ export default function Overview() {
   const weather = useGetCurrentWeather();
   const zones   = useGetZones();
 
-  const activePumps  = pumps.data?.filter((p) => p.status === "on" || p.status === "override").length ?? 0;
-  const alertCount   = alerts.data?.length ?? 0;
-  const zoneStatuses = zones.data?.map((z) => z.status) ?? [];
+  const pumpRows = arrayFromQueryData<Pump>(pumps.data);
+  const alertRows = arrayFromQueryData<Alert>(alerts.data);
+  const zoneRows = arrayFromQueryData<Zone>(zones.data);
+
+  const activePumps  = pumpRows.filter((p) => p.status === "on" || p.status === "override").length;
+  const alertCount   = alertRows.length;
+  const zoneStatuses = zoneRows.map((z) => z.status);
   const dryZones     = zoneStatuses.filter((s) => s === "dry").length;
   const wetZones     = zoneStatuses.filter((s) => s === "waterlogged" || s === "wet").length;
 
@@ -120,7 +140,7 @@ export default function Overview() {
             <MetricCard
               label="Active Pumps"
               value={activePumps}
-              unit={`/ ${pumps.data?.length ?? 4}`}
+              unit={`/ ${pumpRows.length || 4}`}
               icon={Zap}
               iconColor={activePumps > 0 ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground"}
               sub={summary.data?.irrigationMode === "override" ? "Manual override" : "Auto mode"}
@@ -165,7 +185,7 @@ export default function Overview() {
           <CardContent className="space-y-2.5">
             {zones.isLoading
               ? Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-9" />)
-              : (zones.data ?? []).map((z) => (
+              : zoneRows.map((z) => (
                   <div key={z.id} className="flex items-center gap-3 py-2 px-3 rounded-lg bg-muted/40 border border-border">
                     <div className={cn(
                       "w-2 h-2 rounded-full flex-shrink-0",
@@ -247,7 +267,7 @@ export default function Overview() {
               <div className="grid grid-cols-2 gap-2">
                 {pumps.isLoading
                   ? Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-8" />)
-                  : (pumps.data ?? []).map((p) => (
+                  : pumpRows.map((p) => (
                       <div key={p.id} className={cn(
                         "rounded-md border px-2 py-1.5 flex items-center gap-1.5",
                         p.status === "on" || p.status === "override" ? "border-primary/30 bg-primary/5" : "border-border"
@@ -291,14 +311,14 @@ export default function Overview() {
         <CardContent>
           {alerts.isLoading ? (
             <Skeleton className="h-20" />
-          ) : (alerts.data?.length ?? 0) === 0 ? (
+          ) : alertRows.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-8 text-center">
               <CheckCircle2 className="w-8 h-8 text-primary mb-2" />
               <p className="text-xs text-muted-foreground">No active alerts — all systems normal</p>
             </div>
           ) : (
             <div className="space-y-2">
-              {(alerts.data ?? []).slice(0, 5).map((alert) => {
+              {alertRows.slice(0, 5).map((alert) => {
                 const typeConf = alertTypeConfig[alert.type as AlertType] ?? alertTypeConfig.sensor_anomaly;
                 const TypeIcon = typeConf.icon;
                 return (
