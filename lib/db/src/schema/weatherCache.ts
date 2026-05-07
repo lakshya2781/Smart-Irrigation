@@ -10,6 +10,8 @@ export const weatherCacheTable = pgTable("weather_cache", {
   rainProbability: real("rain_probability").notNull(),
   windSpeed: real("wind_speed").notNull(),
   location: text("location").notNull(),
+  latitude: real("latitude"),
+  longitude: real("longitude"),
   forecastJson: text("forecast_json"),
   recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull().defaultNow(),
 });

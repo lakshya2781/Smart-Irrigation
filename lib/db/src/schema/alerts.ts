@@ -4,7 +4,7 @@ import { z } from "zod/v4";
 
 export const alertsTable = pgTable("alerts", {
   id: serial("id").primaryKey(),
-  type: text("type").notNull().$type<"tank_empty" | "water_logging" | "sensor_anomaly" | "pump_failure" | "low_moisture" | "high_moisture">(),
+  type: text("type").notNull().$type<"tank_empty" | "water_logging" | "sensor_anomaly" | "pump_failure" | "low_moisture" | "high_moisture" | "weather_update" | "crop_health" | "irrigation_complete">(),
   severity: text("severity").notNull().$type<"info" | "warning" | "critical">(),
   message: text("message").notNull(),
   zoneId: integer("zone_id"),

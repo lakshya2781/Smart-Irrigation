@@ -242,6 +242,36 @@ paths:
               schema:
                 $ref: "#/components/schemas/IngestResponse"
 
+  /weather/location:
+    get:
+      operationId: getWeatherLocation
+      tags: [weather]
+      summary: Get current location settings
+      responses:
+        "200":
+          description: Location settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LocationSettings"
+    put:
+      operationId: updateWeatherLocation
+      tags: [weather]
+      summary: Update location coordinates
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateLocationBody"
+      responses:
+        "200":
+          description: Updated location settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LocationSettings"
+
   /weather/current:
     get:
       operationId: getCurrentWeather
@@ -413,6 +443,46 @@ paths:
               schema:
                 $ref: "#/components/schemas/AiRecommendations"
 
+  /crop-health:
+    get:
+      operationId: getCropHealth
+      tags: [cropHealth]
+      summary: Get current crop health metrics per zone
+      responses:
+        "200":
+          description: Crop health metrics
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CropHealthMetrics"
+
+  /crop-health/history:
+    get:
+      operationId: getCropHealthHistory
+      tags: [cropHealth]
+      summary: Get historical crop health data
+      parameters:
+        - name: zoneId
+          in: query
+          schema:
+            type: integer
+        - name: days
+          in: query
+          schema:
+            type: integer
+            default: 30
+      responses:
+        "200":
+          description: Crop health history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CropHealthRecord"
+
   /water-usage/stats:
     get:
       operationId: getWaterUsageStats
@@ -515,6 +585,16 @@ components:
         status:
           type: string
           enum: [optimal, dry, wet, waterlogged, unknown]
+        recommendation:
+          type: string
+          enum: [irrigate, skip, monitor]
+          nullable: true
+        recommendationReasoning:
+          type: string
+          nullable: true
+        suggestedDurationMinutes:
+          type: integer
+          nullable: true
       required:
         - id
         - name
@@ -722,6 +802,12 @@ components:
           type: number
         location:
           type: string
+        latitude:
+          type: number
+          nullable: true
+        longitude:
+          type: number
+          nullable: true
         timestamp:
           type: string
       required:
@@ -962,3 +1048,96 @@ components:
                 type: number
             required: [zoneId, zoneName, liters]
       required: [date, totalLiters, totalMinutes, sessionCount, zoneBreakdown]
+
+    LocationSettings:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        latitude:
+          type: number
+        longitude:
+          type: number
+        updatedAt:
+          type: string
+      required: [id, name, latitude, longitude, updatedAt]
+
+    UpdateLocationBody:
+      type: object
+      properties:
+        name:
+          type: string
+        latitude:
+          type: number
+        longitude:
+          type: number
+      required: [latitude, longitude]
+
+    CropHealthMetrics:
+      type: object
+      properties:
+        zoneId:
+          type: integer
+          nullable: true
+        zoneName:
+          type: string
+        ndvi:
+          type: number
+        soilHealthIndex:
+          type: number
+        waterStressLevel:
+          type: number
+        growthRate:
+          type: number
+        overallStatus:
+          type: string
+          enum: [good, moderate, critical]
+        predictionText:
+          type: string
+          nullable: true
+        riskDrought:
+          type: number
+        riskOverwatering:
+          type: number
+        riskDisease:
+          type: number
+        recordedAt:
+          type: string
+      required:
+        - zoneName
+        - ndvi
+        - soilHealthIndex
+        - waterStressLevel
+        - growthRate
+        - overallStatus
+        - riskDrought
+        - riskOverwatering
+        - riskDisease
+        - recordedAt
+
+    CropHealthRecord:
+      type: object
+      properties:
+        id:
+          type: integer
+        zoneId:
+          type: integer
+          nullable: true
+        zoneName:
+          type: string
+        ndvi:
+          type: number
+        soilHealthIndex:
+          type: number
+        waterStressLevel:
+          type: number
+        growthRate:
+          type: number
+        overallStatus:
+          type: string
+          enum: [good, moderate, critical]
+        recordedAt:
+          type: string
+      required: [id, zoneName, ndvi, soilHealthIndex, waterStressLevel, growthRate, overallStatus, recordedAt]

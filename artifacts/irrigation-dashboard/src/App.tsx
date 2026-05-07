@@ -11,6 +11,7 @@ import AiPanel from "@/pages/AiPanel";
 import Alerts from "@/pages/Alerts";
 import History from "@/pages/History";
 import CropsConfig from "@/pages/CropsConfig";
+import CropHealth from "@/pages/CropHealth";
 import NotFound from "@/pages/not-found";
 import { useRealtimeUpdates } from "@/hooks/useRealtimeUpdates";
 
@@ -40,6 +41,7 @@ function Router() {
         <Route path="/alerts" component={Alerts} />
         <Route path="/history" component={History} />
         <Route path="/crops" component={CropsConfig} />
+        <Route path="/crop-health" component={CropHealth} />
         <Route component={NotFound} />
       </Switch>
     </Layout>

@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
-import { eq, sql } from "drizzle-orm";
-import { db, zonesTable, cropsTable, soilTypesTable, pumpsTable, sensorReadingsTable } from "@workspace/db";
+import { eq, sql, desc } from "drizzle-orm";
+import { db, zonesTable, cropsTable, soilTypesTable, pumpsTable, sensorReadingsTable, weatherCacheTable } from "@workspace/db";
 import {
   GetZoneParams,
   GetZoneResponse,
@@ -29,7 +29,34 @@ function zoneStatus(moisture: number, min: number, max: number, waterLogging: bo
   return "unknown";
 }
 
-router.get("/zones", async (req, res): Promise<void> => {
+function computeRecommendation(
+  moisture: number, targetMin: number, targetMax: number, retention: number, rainProb: number
+): { recommendation: "irrigate" | "skip" | "monitor"; reasoning: string; suggestedDurationMinutes: number } {
+  if (rainProb >= 90) {
+    return { recommendation: "skip", reasoning: "High rain probability — skip irrigation to avoid overwatering.", suggestedDurationMinutes: 0 };
+  }
+  if (moisture < targetMin - 5) {
+    if (rainProb >= 50) {
+      return { recommendation: "monitor", reasoning: `Moisture at ${moisture.toFixed(1)}% is below threshold but moderate rain expected. Monitor for 2 hours.`, suggestedDurationMinutes: 0 };
+    }
+    const deficit = targetMax - moisture;
+    const mins = Math.round((deficit / 10) * (1 - retention) * 30 + 10);
+    return { recommendation: "irrigate", reasoning: `Soil moisture at ${moisture.toFixed(1)}% is below minimum (${targetMin}%). Estimated ${mins} min irrigation needed.`, suggestedDurationMinutes: mins };
+  }
+  if (moisture > targetMax + 5) {
+    return { recommendation: "skip", reasoning: `Soil moisture at ${moisture.toFixed(1)}% exceeds maximum (${targetMax}%). Risk of waterlogging — skip.`, suggestedDurationMinutes: 0 };
+  }
+  return { recommendation: "monitor", reasoning: `Moisture at ${moisture.toFixed(1)}% is within optimal range (${targetMin}%–${targetMax}%). No irrigation needed.`, suggestedDurationMinutes: 0 };
+}
+
+async function getLatestRainProb(): Promise<number> {
+  const [weather] = await db.select({ rainProbability: weatherCacheTable.rainProbability }).from(weatherCacheTable).orderBy(desc(weatherCacheTable.recordedAt)).limit(1);
+  return weather?.rainProbability ?? 40;
+}
+
+router.get("/zones", async (_req, res): Promise<void> => {
+  const rainProb = await getLatestRainProb();
+
   const zones = await db
     .select({
       id: zonesTable.id,
@@ -45,27 +72,34 @@ router.get("/zones", async (req, res): Promise<void> => {
       pumpStatus: pumpsTable.status,
       pumpOverride: pumpsTable.isManualOverride,
       lastIrrigated: zonesTable.lastIrrigated,
+      waterRetention: soilTypesTable.waterRetentionCapacity,
     })
     .from(zonesTable)
     .leftJoin(cropsTable, eq(zonesTable.cropId, cropsTable.id))
     .leftJoin(soilTypesTable, eq(zonesTable.soilTypeId, soilTypesTable.id))
     .leftJoin(pumpsTable, eq(pumpsTable.zoneId, zonesTable.id));
 
-  const result = zones.map((z) => ({
-    id: z.id,
-    name: z.name,
-    cropId: z.cropId,
-    cropName: z.cropName ?? "Unknown",
-    soilTypeId: z.soilTypeId,
-    soilTypeName: z.soilTypeName ?? "Unknown",
-    currentMoisture: z.currentMoisture,
-    targetMoistureMin: z.targetMoistureMin,
-    targetMoistureMax: z.targetMoistureMax,
-    pumpId: z.pumpId ?? 0,
-    pumpStatus: pumpStatusForZone(z.pumpStatus, z.pumpOverride ?? false),
-    lastIrrigated: z.lastIrrigated?.toISOString() ?? null,
-    status: zoneStatus(z.currentMoisture, z.targetMoistureMin, z.targetMoistureMax, false),
-  }));
+  const result = zones.map((z) => {
+    const rec = computeRecommendation(z.currentMoisture, z.targetMoistureMin, z.targetMoistureMax, z.waterRetention ?? 0.5, rainProb);
+    return {
+      id: z.id,
+      name: z.name,
+      cropId: z.cropId,
+      cropName: z.cropName ?? "Unknown",
+      soilTypeId: z.soilTypeId,
+      soilTypeName: z.soilTypeName ?? "Unknown",
+      currentMoisture: z.currentMoisture,
+      targetMoistureMin: z.targetMoistureMin,
+      targetMoistureMax: z.targetMoistureMax,
+      pumpId: z.pumpId ?? 0,
+      pumpStatus: pumpStatusForZone(z.pumpStatus, z.pumpOverride ?? false),
+      lastIrrigated: z.lastIrrigated?.toISOString() ?? null,
+      status: zoneStatus(z.currentMoisture, z.targetMoistureMin, z.targetMoistureMax, false),
+      recommendation: rec.recommendation,
+      recommendationReasoning: rec.reasoning,
+      suggestedDurationMinutes: rec.suggestedDurationMinutes,
+    };
+  });
 
   res.json(GetZonesResponse.parse(result));
 });
@@ -77,6 +111,8 @@ router.get("/zones/:id", async (req, res): Promise<void> => {
     res.status(400).json({ error: params.error.message });
     return;
   }
+
+  const rainProb = await getLatestRainProb();
 
   const [z] = await db
     .select({
@@ -93,6 +129,7 @@ router.get("/zones/:id", async (req, res): Promise<void> => {
       pumpStatus: pumpsTable.status,
       pumpOverride: pumpsTable.isManualOverride,
       lastIrrigated: zonesTable.lastIrrigated,
+      waterRetention: soilTypesTable.waterRetentionCapacity,
     })
     .from(zonesTable)
     .leftJoin(cropsTable, eq(zonesTable.cropId, cropsTable.id))
@@ -104,6 +141,8 @@ router.get("/zones/:id", async (req, res): Promise<void> => {
     res.status(404).json({ error: "Zone not found" });
     return;
   }
+
+  const rec = computeRecommendation(z.currentMoisture, z.targetMoistureMin, z.targetMoistureMax, z.waterRetention ?? 0.5, rainProb);
 
   res.json(GetZoneResponse.parse({
     id: z.id,
@@ -119,6 +158,9 @@ router.get("/zones/:id", async (req, res): Promise<void> => {
     pumpStatus: pumpStatusForZone(z.pumpStatus, z.pumpOverride ?? false),
     lastIrrigated: z.lastIrrigated?.toISOString() ?? null,
     status: zoneStatus(z.currentMoisture, z.targetMoistureMin, z.targetMoistureMax, false),
+    recommendation: rec.recommendation,
+    recommendationReasoning: rec.reasoning,
+    suggestedDurationMinutes: rec.suggestedDurationMinutes,
   }));
 });
 
@@ -154,6 +196,8 @@ router.patch("/zones/:id", async (req, res): Promise<void> => {
     return;
   }
 
+  const rainProb = await getLatestRainProb();
+
   const [z] = await db
     .select({
       id: zonesTable.id,
@@ -169,12 +213,15 @@ router.patch("/zones/:id", async (req, res): Promise<void> => {
       pumpStatus: pumpsTable.status,
       pumpOverride: pumpsTable.isManualOverride,
       lastIrrigated: zonesTable.lastIrrigated,
+      waterRetention: soilTypesTable.waterRetentionCapacity,
     })
     .from(zonesTable)
     .leftJoin(cropsTable, eq(zonesTable.cropId, cropsTable.id))
     .leftJoin(soilTypesTable, eq(zonesTable.soilTypeId, soilTypesTable.id))
     .leftJoin(pumpsTable, eq(pumpsTable.zoneId, zonesTable.id))
     .where(eq(zonesTable.id, params.data.id));
+
+  const rec = computeRecommendation(z!.currentMoisture, z!.targetMoistureMin, z!.targetMoistureMax, z!.waterRetention ?? 0.5, rainProb);
 
   res.json(UpdateZoneResponse.parse({
     id: z!.id,
@@ -190,6 +237,9 @@ router.patch("/zones/:id", async (req, res): Promise<void> => {
     pumpStatus: pumpStatusForZone(z!.pumpStatus, z!.pumpOverride ?? false),
     lastIrrigated: z!.lastIrrigated?.toISOString() ?? null,
     status: zoneStatus(z!.currentMoisture, z!.targetMoistureMin, z!.targetMoistureMax, false),
+    recommendation: rec.recommendation,
+    recommendationReasoning: rec.reasoning,
+    suggestedDurationMinutes: rec.suggestedDurationMinutes,
   }));
 });
 

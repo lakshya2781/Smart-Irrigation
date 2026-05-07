@@ -48,6 +48,9 @@ export const GetZonesResponseItem = zod.object({
   pumpStatus: zod.enum(["on", "off", "override"]),
   lastIrrigated: zod.string().nullish(),
   status: zod.enum(["optimal", "dry", "wet", "waterlogged", "unknown"]),
+  recommendation: zod.enum(["irrigate", "skip", "monitor"]).nullish(),
+  recommendationReasoning: zod.string().nullish(),
+  suggestedDurationMinutes: zod.number().nullish(),
 });
 export const GetZonesResponse = zod.array(GetZonesResponseItem);
 
@@ -72,6 +75,9 @@ export const GetZoneResponse = zod.object({
   pumpStatus: zod.enum(["on", "off", "override"]),
   lastIrrigated: zod.string().nullish(),
   status: zod.enum(["optimal", "dry", "wet", "waterlogged", "unknown"]),
+  recommendation: zod.enum(["irrigate", "skip", "monitor"]).nullish(),
+  recommendationReasoning: zod.string().nullish(),
+  suggestedDurationMinutes: zod.number().nullish(),
 });
 
 /**
@@ -103,6 +109,9 @@ export const UpdateZoneResponse = zod.object({
   pumpStatus: zod.enum(["on", "off", "override"]),
   lastIrrigated: zod.string().nullish(),
   status: zod.enum(["optimal", "dry", "wet", "waterlogged", "unknown"]),
+  recommendation: zod.enum(["irrigate", "skip", "monitor"]).nullish(),
+  recommendationReasoning: zod.string().nullish(),
+  suggestedDurationMinutes: zod.number().nullish(),
 });
 
 /**
@@ -234,6 +243,34 @@ export const IngestEsp32DataResponse = zod.object({
 });
 
 /**
+ * @summary Get current location settings
+ */
+export const GetWeatherLocationResponse = zod.object({
+  id: zod.number(),
+  name: zod.string(),
+  latitude: zod.number(),
+  longitude: zod.number(),
+  updatedAt: zod.string(),
+});
+
+/**
+ * @summary Update location coordinates
+ */
+export const UpdateWeatherLocationBody = zod.object({
+  name: zod.string().optional(),
+  latitude: zod.number(),
+  longitude: zod.number(),
+});
+
+export const UpdateWeatherLocationResponse = zod.object({
+  id: zod.number(),
+  name: zod.string(),
+  latitude: zod.number(),
+  longitude: zod.number(),
+  updatedAt: zod.string(),
+});
+
+/**
  * @summary Get current weather data
  */
 export const GetCurrentWeatherResponse = zod.object({
@@ -243,6 +280,8 @@ export const GetCurrentWeatherResponse = zod.object({
   rainProbability: zod.number(),
   windSpeed: zod.number(),
   location: zod.string(),
+  latitude: zod.number().nullish(),
+  longitude: zod.number().nullish(),
   timestamp: zod.string(),
 });
 
@@ -427,6 +466,50 @@ export const GetAiRecommendationsResponse = zod.object({
   ),
   generatedAt: zod.string(),
 });
+
+/**
+ * @summary Get current crop health metrics per zone
+ */
+export const GetCropHealthResponseItem = zod.object({
+  zoneId: zod.number().nullish(),
+  zoneName: zod.string(),
+  ndvi: zod.number(),
+  soilHealthIndex: zod.number(),
+  waterStressLevel: zod.number(),
+  growthRate: zod.number(),
+  overallStatus: zod.enum(["good", "moderate", "critical"]),
+  predictionText: zod.string().nullish(),
+  riskDrought: zod.number(),
+  riskOverwatering: zod.number(),
+  riskDisease: zod.number(),
+  recordedAt: zod.string(),
+});
+export const GetCropHealthResponse = zod.array(GetCropHealthResponseItem);
+
+/**
+ * @summary Get historical crop health data
+ */
+export const getCropHealthHistoryQueryDaysDefault = 30;
+
+export const GetCropHealthHistoryQueryParams = zod.object({
+  zoneId: zod.coerce.number().optional(),
+  days: zod.coerce.number().default(getCropHealthHistoryQueryDaysDefault),
+});
+
+export const GetCropHealthHistoryResponseItem = zod.object({
+  id: zod.number(),
+  zoneId: zod.number().nullish(),
+  zoneName: zod.string(),
+  ndvi: zod.number(),
+  soilHealthIndex: zod.number(),
+  waterStressLevel: zod.number(),
+  growthRate: zod.number(),
+  overallStatus: zod.enum(["good", "moderate", "critical"]),
+  recordedAt: zod.string(),
+});
+export const GetCropHealthHistoryResponse = zod.array(
+  GetCropHealthHistoryResponseItem,
+);
 
 /**
  * @summary Get water usage statistics over time

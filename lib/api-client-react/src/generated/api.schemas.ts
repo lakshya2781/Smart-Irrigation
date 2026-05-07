@@ -60,6 +60,16 @@ export const ZoneStatus = {
   unknown: "unknown",
 } as const;
 
+export type ZoneRecommendation =
+  | (typeof ZoneRecommendation)[keyof typeof ZoneRecommendation]
+  | null;
+
+export const ZoneRecommendation = {
+  irrigate: "irrigate",
+  skip: "skip",
+  monitor: "monitor",
+} as const;
+
 export interface Zone {
   id: number;
   name: string;
@@ -74,6 +84,9 @@ export interface Zone {
   pumpStatus: ZonePumpStatus;
   lastIrrigated?: string | null;
   status: ZoneStatus;
+  recommendation?: ZoneRecommendation;
+  recommendationReasoning?: string | null;
+  suggestedDurationMinutes?: number | null;
 }
 
 export interface UpdateZoneBody {
@@ -180,6 +193,8 @@ export interface WeatherData {
   rainProbability: number;
   windSpeed: number;
   location: string;
+  latitude?: number | null;
+  longitude?: number | null;
   timestamp: string;
 }
 
@@ -363,6 +378,65 @@ export interface WaterUsageStat {
   zoneBreakdown: WaterUsageStatZoneBreakdownItem[];
 }
 
+export interface LocationSettings {
+  id: number;
+  name: string;
+  latitude: number;
+  longitude: number;
+  updatedAt: string;
+}
+
+export interface UpdateLocationBody {
+  name?: string;
+  latitude: number;
+  longitude: number;
+}
+
+export type CropHealthMetricsOverallStatus =
+  (typeof CropHealthMetricsOverallStatus)[keyof typeof CropHealthMetricsOverallStatus];
+
+export const CropHealthMetricsOverallStatus = {
+  good: "good",
+  moderate: "moderate",
+  critical: "critical",
+} as const;
+
+export interface CropHealthMetrics {
+  zoneId?: number | null;
+  zoneName: string;
+  ndvi: number;
+  soilHealthIndex: number;
+  waterStressLevel: number;
+  growthRate: number;
+  overallStatus: CropHealthMetricsOverallStatus;
+  predictionText?: string | null;
+  riskDrought: number;
+  riskOverwatering: number;
+  riskDisease: number;
+  recordedAt: string;
+}
+
+export type CropHealthRecordOverallStatus =
+  (typeof CropHealthRecordOverallStatus)[keyof typeof CropHealthRecordOverallStatus];
+
+export const CropHealthRecordOverallStatus = {
+  good: "good",
+  moderate: "moderate",
+  critical: "critical",
+} as const;
+
+export interface CropHealthRecord {
+  id: number;
+  zoneId?: number | null;
+  zoneName: string;
+  ndvi: number;
+  soilHealthIndex: number;
+  waterStressLevel: number;
+  growthRate: number;
+  overallStatus: CropHealthRecordOverallStatus;
+  recordedAt: string;
+}
+
 export type GetZoneMoistureTrendParams = {
   hours?: number;
 };
@@ -379,6 +453,11 @@ export type GetIrrigationLogsParams = {
 
 export type GetAlertsParams = {
   acknowledged?: boolean;
+};
+
+export type GetCropHealthHistoryParams = {
+  zoneId?: number;
+  days?: number;
 };
 
 export type GetWaterUsageStatsParams = {

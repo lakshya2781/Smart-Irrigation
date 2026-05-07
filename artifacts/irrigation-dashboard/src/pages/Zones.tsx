@@ -28,21 +28,45 @@ import {
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Leaf, Droplets, Settings, Calendar, Layers } from "lucide-react";
+import {
+  Leaf, Droplets, Settings, Calendar, Layers,
+  Zap, Eye, XCircle, Clock,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 function statusColor(status: string) {
-  return status === "optimal" ? "text-primary border-primary/30 bg-primary/10" :
-    status === "dry" ? "text-amber-400 border-amber-400/30 bg-amber-400/10" :
-    status === "waterlogged" ? "text-blue-400 border-blue-400/30 bg-blue-400/10" :
-    "text-red-400 border-red-400/30 bg-red-400/10";
+  return status === "optimal"
+    ? "text-primary border-primary/30 bg-primary/10"
+    : status === "dry"
+    ? "text-amber-400 border-amber-400/30 bg-amber-400/10"
+    : status === "waterlogged"
+    ? "text-blue-400 border-blue-400/30 bg-blue-400/10"
+    : "text-red-400 border-red-400/30 bg-red-400/10";
 }
 
-function moistureColor(value: number, min: number, max: number) {
+function moistureBarColor(value: number, min: number, max: number) {
   if (value < min - 5) return "bg-amber-500";
   if (value > max + 5) return "bg-blue-500";
   return "bg-primary";
 }
+
+const recConfig = {
+  irrigate: {
+    label: "Irrigate",
+    color: "text-primary border-primary/40 bg-primary/10",
+    icon: Droplets,
+  },
+  skip: {
+    label: "Skip",
+    color: "text-muted-foreground border-border bg-muted/40",
+    icon: XCircle,
+  },
+  monitor: {
+    label: "Monitor",
+    color: "text-amber-400 border-amber-400/40 bg-amber-400/10",
+    icon: Eye,
+  },
+};
 
 export default function Zones() {
   const queryClient = useQueryClient();
@@ -93,90 +117,123 @@ export default function Zones() {
     <div className="p-6 space-y-6 animate-slide-in">
       <div>
         <h1 className="text-xl font-bold">Irrigation Zones</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">4 zones monitored by soil moisture sensors</p>
+        <p className="text-sm text-muted-foreground mt-0.5">
+          4 zones with live sensor data, pump status, and AI-based irrigation recommendations
+        </p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {zones.isLoading
-          ? Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-64" />)
-          : (zones.data ?? []).map((zone) => (
-              <Card key={zone.id} className="border-card-border">
-                <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <CardTitle className="text-sm font-semibold">{zone.name}</CardTitle>
-                      <div className="flex items-center gap-2 mt-1">
-                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4">
-                          <Leaf className="w-2.5 h-2.5 mr-1" />{zone.cropName}
+          ? Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-72" />)
+          : (zones.data ?? []).map((zone) => {
+              const rec = zone.recommendation ? recConfig[zone.recommendation] : null;
+              const RecIcon = rec?.icon;
+              return (
+                <Card key={zone.id} className="border-card-border">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <CardTitle className="text-sm font-semibold">{zone.name}</CardTitle>
+                        <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                          <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4">
+                            <Leaf className="w-2.5 h-2.5 mr-1" />{zone.cropName}
+                          </Badge>
+                          <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4">
+                            <Layers className="w-2.5 h-2.5 mr-1" />{zone.soilTypeName}
+                          </Badge>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className={cn("text-xs capitalize", statusColor(zone.status))}>
+                          {zone.status}
                         </Badge>
-                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4">
-                          <Layers className="w-2.5 h-2.5 mr-1" />{zone.soilTypeName}
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(zone)}>
+                          <Settings className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                  </CardHeader>
+
+                  <CardContent className="space-y-4">
+                    {/* Moisture gauge */}
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-baseline">
+                        <span className="text-xs text-muted-foreground flex items-center gap-1">
+                          <Droplets className="w-3 h-3" />Soil Moisture
+                        </span>
+                        <span className="text-2xl font-bold tabular-nums">
+                          {zone.currentMoisture.toFixed(1)}
+                          <span className="text-sm text-muted-foreground font-normal">%</span>
+                        </span>
+                      </div>
+                      <div className="h-3 bg-muted rounded-full overflow-hidden relative">
+                        <div
+                          className={cn("h-full rounded-full transition-all duration-500", moistureBarColor(zone.currentMoisture, zone.targetMoistureMin, zone.targetMoistureMax))}
+                          style={{ width: `${Math.min(100, zone.currentMoisture)}%` }}
+                        />
+                        <div className="absolute top-0 h-full w-0.5 bg-white/20" style={{ left: `${zone.targetMoistureMin}%` }} />
+                        <div className="absolute top-0 h-full w-0.5 bg-white/20" style={{ left: `${zone.targetMoistureMax}%` }} />
+                      </div>
+                      <div className="flex justify-between text-[10px] text-muted-foreground">
+                        <span>0%</span>
+                        <span className="text-primary/70">Target: {zone.targetMoistureMin}–{zone.targetMoistureMax}%</span>
+                        <span>100%</span>
+                      </div>
+                    </div>
+
+                    {/* Pump status */}
+                    <div className="flex items-center justify-between py-2 px-3 rounded-lg bg-muted/50 border border-border">
+                      <span className="text-xs text-muted-foreground flex items-center gap-1.5">
+                        <Zap className="w-3.5 h-3.5" />
+                        Pump {zone.pumpId}
+                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <div className={cn(
+                          "w-1.5 h-1.5 rounded-full",
+                          zone.pumpStatus === "on" ? "bg-primary animate-pulse-green" :
+                          zone.pumpStatus === "override" ? "bg-amber-400" : "bg-muted-foreground"
+                        )} />
+                        <Badge variant="outline" className={cn(
+                          "text-[10px] px-1.5 py-0 h-4",
+                          zone.pumpStatus === "on" ? "text-primary border-primary/40" :
+                          zone.pumpStatus === "override" ? "text-amber-400 border-amber-400/40" : ""
+                        )}>
+                          {zone.pumpStatus.toUpperCase()}
                         </Badge>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline" className={cn("text-xs", statusColor(zone.status))}>
-                        {zone.status}
-                      </Badge>
-                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(zone)}>
-                        <Settings className="w-3.5 h-3.5" />
-                      </Button>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {/* Moisture gauge */}
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-baseline">
-                      <span className="text-xs text-muted-foreground flex items-center gap-1">
-                        <Droplets className="w-3 h-3" /> Soil Moisture
-                      </span>
-                      <span className="text-2xl font-bold tabular-nums">{zone.currentMoisture.toFixed(1)}<span className="text-sm text-muted-foreground font-normal">%</span></span>
-                    </div>
-                    <div className="h-3 bg-muted rounded-full overflow-hidden relative">
-                      <div
-                        className={cn("h-full rounded-full transition-all duration-500", moistureColor(zone.currentMoisture, zone.targetMoistureMin, zone.targetMoistureMax))}
-                        style={{ width: `${Math.min(100, zone.currentMoisture)}%` }}
-                      />
-                      <div className="absolute top-0 h-full w-0.5 bg-white/20" style={{ left: `${zone.targetMoistureMin}%` }} />
-                      <div className="absolute top-0 h-full w-0.5 bg-white/20" style={{ left: `${zone.targetMoistureMax}%` }} />
-                    </div>
-                    <div className="flex justify-between text-[10px] text-muted-foreground">
-                      <span>0%</span>
-                      <span className="text-primary/70">Target: {zone.targetMoistureMin}–{zone.targetMoistureMax}%</span>
-                      <span>100%</span>
-                    </div>
-                  </div>
 
-                  {/* Pump info */}
-                  <div className="flex items-center justify-between py-2 px-3 rounded-lg bg-muted/50 border border-border">
-                    <span className="text-xs text-muted-foreground">Pump {zone.pumpId}</span>
-                    <div className="flex items-center gap-1.5">
-                      <div className={cn(
-                        "w-1.5 h-1.5 rounded-full",
-                        zone.pumpStatus === "on" ? "bg-primary animate-pulse-green" :
-                        zone.pumpStatus === "override" ? "bg-amber-400" : "bg-muted-foreground"
-                      )} />
-                      <Badge variant="outline" className={cn(
-                        "text-[10px] px-1.5 py-0 h-4",
-                        zone.pumpStatus === "on" ? "text-primary border-primary/40" :
-                        zone.pumpStatus === "override" ? "text-amber-400 border-amber-400/40" : ""
-                      )}>
-                        {zone.pumpStatus.toUpperCase()}
-                      </Badge>
-                    </div>
-                  </div>
+                    {/* AI Recommendation */}
+                    {rec && RecIcon && (
+                      <div className={cn("rounded-lg border p-3", rec.color)}>
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <RecIcon className="w-3.5 h-3.5 flex-shrink-0" />
+                          <span className="text-xs font-semibold">AI Recommendation: {rec.label}</span>
+                          {zone.suggestedDurationMinutes && zone.suggestedDurationMinutes > 0 && (
+                            <span className="text-[10px] text-muted-foreground flex items-center gap-0.5 ml-auto">
+                              <Clock className="w-3 h-3" />{zone.suggestedDurationMinutes} min
+                            </span>
+                          )}
+                        </div>
+                        {zone.recommendationReasoning && (
+                          <p className="text-[11px] text-muted-foreground leading-relaxed">
+                            {zone.recommendationReasoning}
+                          </p>
+                        )}
+                      </div>
+                    )}
 
-                  {/* Last irrigated */}
-                  {zone.lastIrrigated && (
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                      <Calendar className="w-3 h-3" />
-                      Last irrigated: {new Date(zone.lastIrrigated).toLocaleString()}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            ))}
+                    {/* Last irrigated */}
+                    {zone.lastIrrigated && (
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <Calendar className="w-3 h-3" />
+                        Last irrigated: {new Date(zone.lastIrrigated).toLocaleString()}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })}
       </div>
 
       {/* Edit Dialog */}

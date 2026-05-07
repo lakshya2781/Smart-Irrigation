@@ -3,28 +3,26 @@ import { useGetCrops, useGetSoilTypes } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Leaf, Layers, Droplets, Cloud, Activity, Search, Filter } from "lucide-react";
+import { Leaf, Layers, Droplets, Cloud, Activity, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const drainageColor: Record<string, string> = {
-  slow: "text-blue-400 border-blue-400/30 bg-blue-400/10",
+  slow:   "text-blue-400 border-blue-400/30 bg-blue-400/10",
   medium: "text-primary border-primary/30 bg-primary/10",
-  fast: "text-amber-400 border-amber-400/30 bg-amber-400/10",
+  fast:   "text-amber-400 border-amber-400/30 bg-amber-400/10",
 };
 
-const drainageOrder: Record<string, number> = { slow: 0, medium: 1, fast: 2 };
-
-// Heuristic crop category from name/description
 function getCropCategory(name: string, desc: string): string {
   const n = name.toLowerCase();
   const d = desc.toLowerCase();
@@ -33,9 +31,8 @@ function getCropCategory(name: string, desc: string): string {
   if (["cotton","sunflower","canola","rapeseed","sesame","linseed","flaxseed","safflower","castor","hemp"].some(c => n.includes(c))) return "Industrial Crops";
   if (["banana","plantain","mango","papaya","pineapple","watermelon","cantaloupe","strawberry","avocado","grape","blueberry","raspberry","blackberry","cherry","peach","nectarine","plum","apricot","apple","pear","fig","pomegranate","kiwi","dragon","passion","guava","jackfruit","durian","lychee","mulberry"].some(c => n.includes(c))) return "Fruits";
   if (["coffee","cocoa","cacao","tea","sugarcane","sugar beet","tobacco","vanilla","pepper","ginger","turmeric","cardamom","cinnamon","clove","nutmeg","lemongrass","saffron","moringa","baobab"].some(c => n.includes(c))) return "Cash & Spice Crops";
-  if (["rubber","jute","sisal","hemp"].some(c => n.includes(c))) return "Fiber & Industrial";
   if (["olive","date","coconut","oil palm"].some(c => n.includes(c))) return "Tree Crops";
-  if (["tomato","potato","onion","garlic","carrot","cabbage","broccoli","cauliflower","spinach","lettuce","cucumber","eggplant","brinjal","pepper","okra","corn","pumpkin","zucchini","sweet potato","cassava","yam","taro","beetroot","radish","turnip","leek","celery","asparagus","artichoke","brussels","bok choy","kale","chard","fennel"].some(c => n.includes(c))) return "Vegetables";
+  if (["tomato","potato","onion","garlic","carrot","cabbage","broccoli","cauliflower","spinach","lettuce","cucumber","eggplant","brinjal","okra","corn","pumpkin","zucchini","sweet potato","cassava","yam","taro","beetroot","radish","turnip","leek","celery","asparagus","artichoke","brussels","bok choy","kale","chard","fennel"].some(c => n.includes(c))) return "Vegetables";
   if (["aloe","stevia"].some(c => n.includes(c))) return "Medicinal & Specialty";
   return "Other";
 }
@@ -57,361 +54,343 @@ function getSoilCategory(name: string): string {
   if (n.includes("aridisol") || n.includes("regosol") || n.includes("desert") || n.includes("gypsisol") || n.includes("durisol")) return "Arid & Desert";
   if (n.includes("podzol") || n.includes("spodosol")) return "Podzols";
   if (n.includes("gleysol") || n.includes("stagnosol") || n.includes("gley")) return "Hydromorphic";
-  if (n.includes("cryo") || n.includes("permafrost")) return "Permafrost";
   if (n.includes("anthrosol") || n.includes("paddy") || n.includes("urban") || n.includes("technosol") || n.includes("plaggen")) return "Anthropogenic";
-  if (n.includes("loess")) return "Aeolian Soils";
   return "Other";
 }
-
-const ITEMS_PER_PAGE = 24;
 
 export default function CropsConfig() {
   const crops = useGetCrops();
   const soilTypes = useGetSoilTypes();
 
-  const [cropSearch, setCropSearch] = useState("");
-  const [cropCategory, setCropCategory] = useState("All");
-  const [cropPage, setCropPage] = useState(1);
+  const [selectedCropId, setSelectedCropId] = useState<string>("");
+  const [selectedSoilId, setSelectedSoilId] = useState<string>("");
 
-  const [soilSearch, setSoilSearch] = useState("");
-  const [soilCategory, setSoilCategory] = useState("All");
-  const [soilDrainage, setSoilDrainage] = useState("All");
-
-  // --- Crops ---
   const cropsWithCategory = useMemo(
     () => (crops.data ?? []).map((c) => ({ ...c, category: getCropCategory(c.name, c.description) })),
     [crops.data]
   );
-  const cropCategories = useMemo(
-    () => ["All", ...Array.from(new Set(cropsWithCategory.map((c) => c.category))).sort()],
-    [cropsWithCategory]
-  );
-  const filteredCrops = useMemo(() => {
-    const q = cropSearch.toLowerCase();
-    return cropsWithCategory.filter((c) => {
-      const matchesSearch = !q || c.name.toLowerCase().includes(q) || c.description.toLowerCase().includes(q);
-      const matchesCat = cropCategory === "All" || c.category === cropCategory;
-      return matchesSearch && matchesCat;
+
+  const cropsByCategory = useMemo(() => {
+    const grouped: Record<string, typeof cropsWithCategory> = {};
+    cropsWithCategory.forEach((c) => {
+      if (!grouped[c.category]) grouped[c.category] = [];
+      grouped[c.category].push(c);
     });
-  }, [cropsWithCategory, cropSearch, cropCategory]);
+    return Object.entries(grouped).sort(([a], [b]) => a.localeCompare(b));
+  }, [cropsWithCategory]);
 
-  const totalCropPages = Math.ceil(filteredCrops.length / ITEMS_PER_PAGE);
-  const pagedCrops = filteredCrops.slice((cropPage - 1) * ITEMS_PER_PAGE, cropPage * ITEMS_PER_PAGE);
-
-  // Reset page on filter change
-  const handleCropSearch = (v: string) => { setCropSearch(v); setCropPage(1); };
-  const handleCropCategory = (v: string) => { setCropCategory(v); setCropPage(1); };
-
-  // --- Soil Types ---
   const soilWithCategory = useMemo(
     () => (soilTypes.data ?? []).map((s) => ({ ...s, category: getSoilCategory(s.name) })),
     [soilTypes.data]
   );
-  const soilCategories = useMemo(
-    () => ["All", ...Array.from(new Set(soilWithCategory.map((s) => s.category))).sort()],
-    [soilWithCategory]
-  );
-  const filteredSoils = useMemo(() => {
-    const q = soilSearch.toLowerCase();
-    return soilWithCategory.filter((s) => {
-      const matchesSearch = !q || s.name.toLowerCase().includes(q) || s.description.toLowerCase().includes(q);
-      const matchesCat = soilCategory === "All" || s.category === soilCategory;
-      const matchesDrain = soilDrainage === "All" || s.drainageRate === soilDrainage;
-      return matchesSearch && matchesCat && matchesDrain;
+
+  const soilsByCategory = useMemo(() => {
+    const grouped: Record<string, typeof soilWithCategory> = {};
+    soilWithCategory.forEach((s) => {
+      if (!grouped[s.category]) grouped[s.category] = [];
+      grouped[s.category].push(s);
     });
-  }, [soilWithCategory, soilSearch, soilCategory, soilDrainage]);
+    return Object.entries(grouped).sort(([a], [b]) => a.localeCompare(b));
+  }, [soilWithCategory]);
+
+  const selectedCrop = cropsWithCategory.find((c) => String(c.id) === selectedCropId);
+  const selectedSoil = soilWithCategory.find((s) => String(s.id) === selectedSoilId);
 
   return (
     <div className="p-6 space-y-6 animate-slide-in">
       <div>
         <h1 className="text-xl font-bold flex items-center gap-2">
           <Leaf className="w-5 h-5 text-primary" />
-          Crop & Soil Intelligence Database
+          Crop & Soil Intelligence
         </h1>
         <p className="text-sm text-muted-foreground mt-0.5">
-          {crops.data?.length ?? "—"} crops · {soilTypes.data?.length ?? "—"} soil types — comprehensive agronomic reference
+          Select a crop or soil type to view detailed agronomic data · {crops.data?.length ?? "—"} crops · {soilTypes.data?.length ?? "—"} soil types
         </p>
       </div>
 
       <Tabs defaultValue="crops">
         <TabsList className="bg-muted">
           <TabsTrigger value="crops" className="gap-2">
-            <Leaf className="w-3.5 h-3.5" />Crops ({crops.data?.length ?? 0})
+            <Leaf className="w-3.5 h-3.5" />Crop Lookup
           </TabsTrigger>
           <TabsTrigger value="soils" className="gap-2">
-            <Layers className="w-3.5 h-3.5" />Soil Types ({soilTypes.data?.length ?? 0})
-          </TabsTrigger>
-          <TabsTrigger value="matrix">
-            Matrix
+            <Layers className="w-3.5 h-3.5" />Soil Lookup
           </TabsTrigger>
         </TabsList>
 
-        {/* ===== CROPS TAB ===== */}
-        <TabsContent value="crops" className="space-y-4 mt-4">
-          {/* Filters */}
-          <div className="flex flex-wrap gap-3">
-            <div className="relative flex-1 min-w-48">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-              <Input
-                placeholder="Search crops..."
-                value={cropSearch}
-                onChange={(e) => handleCropSearch(e.target.value)}
-                className="pl-8 bg-muted border-input text-sm h-9"
-              />
-            </div>
-            <Select value={cropCategory} onValueChange={handleCropCategory}>
-              <SelectTrigger className="w-52 bg-muted border-input h-9 text-sm">
-                <Filter className="w-3.5 h-3.5 mr-2 text-muted-foreground" />
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="bg-card border-card-border max-h-72 overflow-y-auto">
-                {cropCategories.map((c) => (
-                  <SelectItem key={c} value={c}>{c}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <span className="text-xs text-muted-foreground self-center whitespace-nowrap">
-              {filteredCrops.length} of {crops.data?.length ?? 0} shown
-            </span>
-          </div>
-
-          {/* Grid */}
-          {crops.isLoading ? (
-            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
-              {Array.from({ length: 12 }).map((_, i) => <Skeleton key={i} className="h-44" />)}
-            </div>
-          ) : pagedCrops.length === 0 ? (
-            <div className="text-center py-16 text-muted-foreground">
-              <Leaf className="w-10 h-10 mx-auto mb-3 opacity-30" />
-              <p className="text-sm">No crops match your search</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
-              {pagedCrops.map((crop) => (
-                <Card key={crop.id} className="border-card-border">
-                  <CardHeader className="pb-2">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <CardTitle className="text-sm font-semibold truncate">{crop.name}</CardTitle>
-                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 mt-1 bg-primary/5 text-primary/80 border-primary/20">
-                          {crop.category}
-                        </Badge>
-                      </div>
-                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 flex-shrink-0">
-                        <Cloud className="w-2.5 h-2.5 mr-1" />
-                        {crop.waterRequirementMm}mm
-                      </Badge>
-                    </div>
-                    <p className="text-[11px] text-muted-foreground leading-relaxed line-clamp-2">{crop.description}</p>
-                  </CardHeader>
-                  <CardContent className="space-y-2.5">
-                    {/* Moisture Range */}
-                    <div className="space-y-1">
-                      <div className="flex justify-between text-[10px]">
-                        <span className="text-muted-foreground flex items-center gap-1">
-                          <Droplets className="w-2.5 h-2.5" />Ideal Moisture
-                        </span>
-                        <span className="font-medium">{crop.idealMoistureMin}–{crop.idealMoistureMax}%</span>
-                      </div>
-                      <div className="h-1.5 bg-muted rounded-full overflow-hidden relative">
-                        <div
-                          className="absolute top-0 h-full bg-primary rounded-full"
-                          style={{
-                            left: `${crop.idealMoistureMin}%`,
-                            width: `${crop.idealMoistureMax - crop.idealMoistureMin}%`,
-                          }}
-                        />
-                      </div>
-                    </div>
-                    {/* Growth Stages */}
-                    <div className="flex flex-wrap gap-1">
-                      {crop.growthStages.slice(0, 4).map((stage: string, i: number) => (
-                        <span
-                          key={stage}
-                          className={cn(
-                            "text-[9px] px-1.5 py-0.5 rounded-full border",
-                            i === 0 ? "bg-primary/15 text-primary border-primary/30" : "bg-muted text-muted-foreground border-border"
-                          )}
-                        >{stage}</span>
-                      ))}
-                      {crop.growthStages.length > 4 && (
-                        <span className="text-[9px] px-1.5 py-0.5 rounded-full border bg-muted text-muted-foreground border-border">
-                          +{crop.growthStages.length - 4} more
-                        </span>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
-
-          {/* Pagination */}
-          {totalCropPages > 1 && (
-            <div className="flex items-center justify-center gap-2 pt-2">
-              <button
-                onClick={() => setCropPage((p) => Math.max(1, p - 1))}
-                disabled={cropPage === 1}
-                className="px-3 py-1.5 text-xs rounded-md border border-border disabled:opacity-40 hover:bg-muted transition-colors"
-              >
-                ← Prev
-              </button>
-              <span className="text-xs text-muted-foreground">
-                Page {cropPage} of {totalCropPages}
-              </span>
-              <button
-                onClick={() => setCropPage((p) => Math.min(totalCropPages, p + 1))}
-                disabled={cropPage === totalCropPages}
-                className="px-3 py-1.5 text-xs rounded-md border border-border disabled:opacity-40 hover:bg-muted transition-colors"
-              >
-                Next →
-              </button>
-            </div>
-          )}
-        </TabsContent>
-
-        {/* ===== SOIL TYPES TAB ===== */}
-        <TabsContent value="soils" className="space-y-4 mt-4">
-          {/* Filters */}
-          <div className="flex flex-wrap gap-3">
-            <div className="relative flex-1 min-w-48">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-              <Input
-                placeholder="Search soil types..."
-                value={soilSearch}
-                onChange={(e) => setSoilSearch(e.target.value)}
-                className="pl-8 bg-muted border-input text-sm h-9"
-              />
-            </div>
-            <Select value={soilCategory} onValueChange={setSoilCategory}>
-              <SelectTrigger className="w-48 bg-muted border-input h-9 text-sm">
-                <Filter className="w-3.5 h-3.5 mr-2 text-muted-foreground" />
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="bg-card border-card-border max-h-72 overflow-y-auto">
-                {soilCategories.map((c) => (
-                  <SelectItem key={c} value={c}>{c}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={soilDrainage} onValueChange={setSoilDrainage}>
-              <SelectTrigger className="w-36 bg-muted border-input h-9 text-sm">
-                <SelectValue placeholder="Drainage" />
-              </SelectTrigger>
-              <SelectContent className="bg-card border-card-border">
-                <SelectItem value="All">All drainage</SelectItem>
-                <SelectItem value="fast">Fast</SelectItem>
-                <SelectItem value="medium">Medium</SelectItem>
-                <SelectItem value="slow">Slow</SelectItem>
-              </SelectContent>
-            </Select>
-            <span className="text-xs text-muted-foreground self-center whitespace-nowrap">
-              {filteredSoils.length} of {soilTypes.data?.length ?? 0} shown
-            </span>
-          </div>
-
-          {/* Group by category */}
-          {soilTypes.isLoading ? (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-32" />)}
-            </div>
-          ) : filteredSoils.length === 0 ? (
-            <div className="text-center py-16 text-muted-foreground">
-              <Layers className="w-10 h-10 mx-auto mb-3 opacity-30" />
-              <p className="text-sm">No soil types match your search</p>
-            </div>
-          ) : (
-            (() => {
-              const grouped: Record<string, typeof filteredSoils> = {};
-              filteredSoils.forEach((s) => {
-                if (!grouped[s.category]) grouped[s.category] = [];
-                grouped[s.category].push(s);
-              });
-              return Object.entries(grouped).sort(([a], [b]) => a.localeCompare(b)).map(([category, soils]) => (
-                <div key={category} className="space-y-3">
-                  <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-                    <Layers className="w-3.5 h-3.5" />{category}
-                    <span className="text-[10px] normal-case tracking-normal text-muted-foreground/60">({soils.length})</span>
-                  </h3>
-                  <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-3">
-                    {soils.sort((a, b) => drainageOrder[a.drainageRate] - drainageOrder[b.drainageRate]).map((soil) => (
-                      <Card key={soil.id} className="border-card-border">
-                        <CardContent className="p-4">
-                          <div className="flex items-start justify-between gap-2 mb-2">
-                            <span className="text-xs font-semibold leading-tight">{soil.name}</span>
-                            <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0 h-4 capitalize flex-shrink-0", drainageColor[soil.drainageRate])}>
-                              {soil.drainageRate}
-                            </Badge>
-                          </div>
-                          <p className="text-[11px] text-muted-foreground leading-relaxed line-clamp-2 mb-2">{soil.description}</p>
-                          <div className="space-y-1">
-                            <div className="flex justify-between text-[10px]">
-                              <span className="text-muted-foreground flex items-center gap-1">
-                                <Activity className="w-2.5 h-2.5" />Retention
-                              </span>
-                              <span className="font-medium">{(soil.waterRetentionCapacity * 100).toFixed(0)}%</span>
-                            </div>
-                            <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                              <div
-                                className={cn("h-full rounded-full", soil.drainageRate === "fast" ? "bg-amber-500" : soil.drainageRate === "slow" ? "bg-blue-500" : "bg-primary")}
-                                style={{ width: `${soil.waterRetentionCapacity * 100}%` }}
-                              />
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                </div>
-              ));
-            })()
-          )}
-        </TabsContent>
-
-        {/* ===== MATRIX TAB ===== */}
-        <TabsContent value="matrix" className="mt-4">
+        {/* ===== CROP LOOKUP TAB ===== */}
+        <TabsContent value="crops" className="space-y-5 mt-5">
+          {/* Selection UI */}
           <Card className="border-card-border">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-semibold">Soil–Crop Compatibility & Irrigation Adjustment Matrix</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-xs space-y-0 divide-y divide-border">
-                <div className="grid grid-cols-5 pb-2 text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
-                  <span>Soil Type</span>
-                  <span>Retention</span>
-                  <span>Drainage</span>
-                  <span>Irrigation Adjustment</span>
-                  <span>Best Crops</span>
+            <CardContent className="p-5">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-9 h-9 rounded-lg bg-primary/15 flex items-center justify-center">
+                  <Leaf className="w-4.5 h-4.5 text-primary" />
                 </div>
-                {(soilTypes.data ?? []).slice(0, 30).map((soil) => (
-                  <div key={soil.id} className="grid grid-cols-5 py-2 items-center gap-2">
-                    <span className="font-medium truncate">{soil.name}</span>
-                    <span className="text-muted-foreground">{(soil.waterRetentionCapacity * 100).toFixed(0)}%</span>
-                    <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0 h-4 w-fit capitalize", drainageColor[soil.drainageRate])}>
-                      {soil.drainageRate}
-                    </Badge>
-                    <span className="text-muted-foreground text-[11px]">
-                      {soil.drainageRate === "fast"
-                        ? "+25% irrigation freq, reduce interval"
-                        : soil.drainageRate === "slow"
-                        ? "−30% volume, improve drainage"
-                        : "Standard schedule, monitor closely"}
-                    </span>
-                    <span className="text-muted-foreground text-[11px]">
-                      {soil.drainageRate === "fast" ? "Carrots, Radish, Garlic, Sandy-adapted" :
-                       soil.drainageRate === "slow" ? "Rice, Sugarcane, Taro, Paddy crops" :
-                       "Wheat, Maize, Tomato, Soybean"}
-                    </span>
-                  </div>
-                ))}
+                <div>
+                  <h3 className="text-sm font-semibold">Select a Crop</h3>
+                  <p className="text-xs text-muted-foreground">Choose from {crops.data?.length ?? 0} crops across 9 categories</p>
+                </div>
               </div>
-              {(soilTypes.data?.length ?? 0) > 30 && (
-                <p className="text-xs text-muted-foreground text-center mt-4">
-                  Showing top 30 of {soilTypes.data?.length} soil types. Use the Soil Types tab to browse all.
-                </p>
+              {crops.isLoading ? (
+                <Skeleton className="h-10 w-full" />
+              ) : (
+                <Select value={selectedCropId} onValueChange={setSelectedCropId}>
+                  <SelectTrigger className="bg-muted border-input h-10">
+                    <SelectValue placeholder="Select a crop to view detailed information…" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-card border-card-border max-h-80 overflow-y-auto">
+                    {cropsByCategory.map(([category, items]) => (
+                      <SelectGroup key={category}>
+                        <SelectLabel className="text-[10px] uppercase tracking-wider text-muted-foreground/60 font-semibold">
+                          {category}
+                        </SelectLabel>
+                        {items.map((c) => (
+                          <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>
+                        ))}
+                      </SelectGroup>
+                    ))}
+                  </SelectContent>
+                </Select>
               )}
             </CardContent>
           </Card>
+
+          {/* Detail panel — only after selection */}
+          {!selectedCropId ? (
+            <div className="flex flex-col items-center justify-center py-16 text-center border border-dashed border-border rounded-xl bg-muted/20">
+              <Leaf className="w-12 h-12 mx-auto mb-3 text-muted-foreground/30" />
+              <p className="text-sm font-medium text-muted-foreground">No crop selected</p>
+              <p className="text-xs text-muted-foreground/60 mt-1">Use the dropdown above to select a crop and view its detailed data</p>
+            </div>
+          ) : selectedCrop ? (
+            <div className="space-y-4">
+              {/* Header card */}
+              <Card className="border-primary/20 bg-primary/3">
+                <CardContent className="p-5">
+                  <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 rounded-xl bg-primary/15 flex items-center justify-center flex-shrink-0">
+                      <Leaf className="w-6 h-6 text-primary" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-1.5">
+                        <h2 className="text-lg font-bold">{selectedCrop.name}</h2>
+                        <Badge variant="outline" className="text-[10px] bg-primary/5 text-primary/80 border-primary/20">
+                          {selectedCrop.category}
+                        </Badge>
+                        <Badge variant="outline" className="text-[10px] ml-auto">
+                          <Cloud className="w-2.5 h-2.5 mr-1" />{selectedCrop.waterRequirementMm}mm/season
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-muted-foreground leading-relaxed">{selectedCrop.description}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {/* Water & Moisture */}
+                <Card className="border-card-border">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                      <Droplets className="w-4 h-4 text-blue-400" />
+                      Water Requirements
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div>
+                      <div className="flex justify-between text-xs mb-2">
+                        <span className="text-muted-foreground">Ideal Soil Moisture Range</span>
+                        <span className="font-bold text-primary">{selectedCrop.idealMoistureMin}–{selectedCrop.idealMoistureMax}%</span>
+                      </div>
+                      <div className="h-3 bg-muted rounded-full overflow-hidden relative">
+                        <div
+                          className="absolute top-0 h-full bg-primary/30 rounded-full"
+                          style={{ left: `${selectedCrop.idealMoistureMin}%`, width: `${selectedCrop.idealMoistureMax - selectedCrop.idealMoistureMin}%` }}
+                        />
+                        <div className="absolute top-0 h-full w-1 bg-primary rounded-full" style={{ left: `${selectedCrop.idealMoistureMin}%` }} />
+                        <div className="absolute top-0 h-full w-1 bg-primary rounded-full" style={{ left: `${selectedCrop.idealMoistureMax}%` }} />
+                      </div>
+                      <div className="flex justify-between text-[10px] text-muted-foreground mt-1">
+                        <span>0%</span>
+                        <span className="text-primary">{selectedCrop.idealMoistureMin}%–{selectedCrop.idealMoistureMax}% optimal</span>
+                        <span>100%</span>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="rounded-lg bg-blue-500/10 border border-blue-500/20 p-3 text-center">
+                        <div className="text-[10px] text-muted-foreground mb-1">Water Requirement</div>
+                        <div className="text-xl font-bold text-blue-400">{selectedCrop.waterRequirementMm}</div>
+                        <div className="text-[10px] text-muted-foreground">mm/season</div>
+                      </div>
+                      <div className="rounded-lg bg-primary/10 border border-primary/20 p-3 text-center">
+                        <div className="text-[10px] text-muted-foreground mb-1">Optimal Moisture</div>
+                        <div className="text-xl font-bold text-primary">{Math.round((selectedCrop.idealMoistureMin + selectedCrop.idealMoistureMax) / 2)}%</div>
+                        <div className="text-[10px] text-muted-foreground">midpoint target</div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Growth stages */}
+                <Card className="border-card-border">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                      <Activity className="w-4 h-4 text-primary" />
+                      Growth Stages
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      {selectedCrop.growthStages.map((stage, i) => (
+                        <div key={stage} className="flex items-center gap-3 py-2 px-3 rounded-lg bg-muted/40 border border-border">
+                          <div className={cn(
+                            "w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0",
+                            i === 0 ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground"
+                          )}>
+                            {i + 1}
+                          </div>
+                          <span className={cn("text-xs", i === 0 ? "font-medium" : "text-muted-foreground")}>{stage}</span>
+                          {i === 0 && <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 ml-auto text-primary border-primary/40">Active</Badge>}
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          ) : null}
+        </TabsContent>
+
+        {/* ===== SOIL LOOKUP TAB ===== */}
+        <TabsContent value="soils" className="space-y-5 mt-5">
+          {/* Selection UI */}
+          <Card className="border-card-border">
+            <CardContent className="p-5">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-9 h-9 rounded-lg bg-amber-500/15 flex items-center justify-center">
+                  <Layers className="w-4.5 h-4.5 text-amber-400" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold">Select a Soil Type</h3>
+                  <p className="text-xs text-muted-foreground">Choose from {soilTypes.data?.length ?? 0} soil types across multiple categories</p>
+                </div>
+              </div>
+              {soilTypes.isLoading ? (
+                <Skeleton className="h-10 w-full" />
+              ) : (
+                <Select value={selectedSoilId} onValueChange={setSelectedSoilId}>
+                  <SelectTrigger className="bg-muted border-input h-10">
+                    <SelectValue placeholder="Select a soil type to view detailed information…" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-card border-card-border max-h-80 overflow-y-auto">
+                    {soilsByCategory.map(([category, items]) => (
+                      <SelectGroup key={category}>
+                        <SelectLabel className="text-[10px] uppercase tracking-wider text-muted-foreground/60 font-semibold">
+                          {category}
+                        </SelectLabel>
+                        {items.map((s) => (
+                          <SelectItem key={s.id} value={String(s.id)}>{s.name}</SelectItem>
+                        ))}
+                      </SelectGroup>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Soil detail panel */}
+          {!selectedSoilId ? (
+            <div className="flex flex-col items-center justify-center py-16 text-center border border-dashed border-border rounded-xl bg-muted/20">
+              <Layers className="w-12 h-12 mx-auto mb-3 text-muted-foreground/30" />
+              <p className="text-sm font-medium text-muted-foreground">No soil type selected</p>
+              <p className="text-xs text-muted-foreground/60 mt-1">Use the dropdown above to select a soil type and view its detailed data</p>
+            </div>
+          ) : selectedSoil ? (
+            <div className="space-y-4">
+              <Card className="border-amber-500/20 bg-amber-500/3">
+                <CardContent className="p-5">
+                  <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 rounded-xl bg-amber-500/15 flex items-center justify-center flex-shrink-0">
+                      <Layers className="w-6 h-6 text-amber-400" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-1.5">
+                        <h2 className="text-lg font-bold">{selectedSoil.name}</h2>
+                        <Badge variant="outline" className="text-[10px]">{selectedSoil.category}</Badge>
+                        <Badge variant="outline" className={cn("text-[10px] ml-auto capitalize", drainageColor[selectedSoil.drainageRate])}>
+                          {selectedSoil.drainageRate} drainage
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-muted-foreground leading-relaxed">{selectedSoil.description}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {/* Retention */}
+                <Card className="border-card-border">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                      <Activity className="w-4 h-4 text-amber-400" />
+                      Soil Water Retention
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div>
+                      <div className="flex justify-between text-xs mb-2">
+                        <span className="text-muted-foreground">Water Retention Capacity</span>
+                        <span className="font-bold text-amber-400">{(selectedSoil.waterRetentionCapacity * 100).toFixed(0)}%</span>
+                      </div>
+                      <div className="h-3 bg-muted rounded-full overflow-hidden">
+                        <div
+                          className={cn("h-full rounded-full transition-all", selectedSoil.drainageRate === "fast" ? "bg-amber-500" : selectedSoil.drainageRate === "slow" ? "bg-blue-500" : "bg-primary")}
+                          style={{ width: `${selectedSoil.waterRetentionCapacity * 100}%` }}
+                        />
+                      </div>
+                    </div>
+                    <div className="rounded-lg bg-muted/40 border border-border p-4">
+                      <div className="text-[10px] text-muted-foreground mb-1">Irrigation Adjustment</div>
+                      <div className="text-sm font-semibold">
+                        {selectedSoil.drainageRate === "fast"
+                          ? "+25% irrigation frequency, reduce interval"
+                          : selectedSoil.drainageRate === "slow"
+                          ? "−30% volume, improve field drainage"
+                          : "Standard schedule, monitor closely"}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Best crops */}
+                <Card className="border-card-border">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                      <Leaf className="w-4 h-4 text-primary" />
+                      Recommended Crops
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      {(selectedSoil.drainageRate === "fast"
+                        ? ["Carrots", "Radish", "Garlic", "Groundnuts", "Sandy-adapted cereals"]
+                        : selectedSoil.drainageRate === "slow"
+                        ? ["Rice", "Sugarcane", "Taro", "Paddy crops", "Wetland vegetables"]
+                        : ["Wheat", "Maize", "Tomato", "Soybean", "Potato"]
+                      ).map((crop) => (
+                        <div key={crop} className="flex items-center gap-2 py-1.5 px-3 rounded-lg bg-muted/40 border border-border text-xs">
+                          <ChevronRight className="w-3 h-3 text-primary flex-shrink-0" />
+                          <span>{crop}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          ) : null}
         </TabsContent>
       </Tabs>
     </div>

@@ -25,10 +25,10 @@ Full-stack web app for monitoring and controlling an ESP32-based smart irrigatio
 ## Where things live
 
 - `lib/api-spec/openapi.yaml` — single source of truth for all API contracts
-- `lib/db/src/schema/` — Drizzle schema files (crops, zones, pumps, sensorReadings, alerts, etc.)
+- `lib/db/src/schema/` — Drizzle schema files (crops, zones, pumps, sensorReadings, alerts, cropHealth, locationSettings)
 - `artifacts/api-server/src/routes/` — all Express route handlers
 - `artifacts/api-server/src/lib/simulator.ts` — ESP32 simulator (30s sensor ingestion + contextual alerts)
-- `artifacts/irrigation-dashboard/src/pages/` — React pages (Overview, Zones, Control, Sensors, AiPanel, Alerts, History, CropsConfig)
+- `artifacts/irrigation-dashboard/src/pages/` — React pages (Overview=Dashboard, Zones, Control, Sensors, AiPanel=WeatherData, Alerts, History, CropsConfig, CropHealth)
 - `artifacts/irrigation-dashboard/src/components/layout/` — Sidebar + Layout
 - `lib/api-client-react/src/generated/` — auto-generated TanStack Query hooks
 - `lib/api-zod/src/generated/` — auto-generated Zod schemas
@@ -44,18 +44,16 @@ Full-stack web app for monitoring and controlling an ESP32-based smart irrigatio
 
 ## Product
 
-- Real-time dashboard with avg moisture, tank level, temperature, rain probability, and pump status
-- **Soil moisture trend chart** on Overview (last 6h, area chart, optimal zone shading) and Sensors page (6/12/24/48h)
-- **Temperature & humidity area chart** with gradient fill (DHT22), tank level area chart with critical threshold band
-- Per-zone sparklines with trend arrows (↑↓—) on Sensor Data cards
-- **ESP32 simulator** — auto-posts sensor data every 30s with diurnal temp cycle and evapotranspiration drift
-- Alert system: 9 types — tank_empty, low/high_moisture, water_logging, sensor_anomaly, pump_failure, **weather_update**, **crop_health**, **irrigation_complete**
-- Alerts page: 6-category summary row, type filter chips, full timeline with icons per category
-- Per-zone irrigation management with crop/soil type configuration and target moisture ranges
-- Manual pump control panel with override management (disables AI auto-control)
-- AI engine: rain-probability-weighted irrigation decisions with per-zone reasoning
-- Historical irrigation logs and water usage analytics with zone-stacked bar charts
-- Crop & soil intelligence database (135 crops across 9 categories, 59 FAO/USDA soil types)
+- **Dashboard** (renamed from Overview) — summary-only: 4 metric cards, zone status, weather snapshot, pump summary, recent alerts feed
+- Real-time zone status with per-zone AI recommendations (irrigate/skip/monitor + reasoning + suggested duration)
+- **Weather Data** (renamed from AI Engine) — location display with GPS coordinates + Relocate dialog, current conditions, 5-day forecast, rain-based irrigation guide
+- **Crop Health** (new page) — NDVI, Soil Health Index, Water Stress, Growth Rate per zone, Radar chart, 30-day trend lines, Predictive Insights, Risk Analysis
+- **Sensor Data** — all charts have expand/collapse toggles; added Waterlogging sensor chart (step area chart)
+- **Crop & Soil Intelligence** — dropdown-first UX (no data shown before selection), grouped by category (135 crops / 59 soils)
+- **Pump Control** — manual override per pump, no System Summary section
+- Soil moisture trend chart, temperature & humidity, tank level with critical threshold band
+- Alert system: 9 types (tank_empty, low/high_moisture, water_logging, sensor_anomaly, pump_failure, weather_update, crop_health, irrigation_complete)
+- Historical irrigation logs, water usage analytics
 
 ## User preferences
 
@@ -68,6 +66,8 @@ Full-stack web app for monitoring and controlling an ESP32-based smart irrigatio
 - Sensor readings table has two roles: global (zoneId=NULL, has temp/humidity/tank) and per-zone (zoneId set, has moisture). Filter accordingly.
 - `zod.coerce.boolean()` issue: always handle boolean query params manually in route handlers.
 - The dashboard refreshes data every 15 seconds via `queryClient.invalidateQueries` (plus instant WebSocket invalidation).
+- Alert type enum in `lib/db/src/schema/alerts.ts` must include ALL 9 alert types (including weather_update, crop_health, irrigation_complete).
+- New DB tables: `cropHealthTable`, `locationSettingsTable` — both pushed to DB.
 
 ## Pointers
 

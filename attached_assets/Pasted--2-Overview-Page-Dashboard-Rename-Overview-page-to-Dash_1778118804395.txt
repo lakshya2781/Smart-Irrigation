@@ -1,0 +1,140 @@
+🏠 2. Overview Page → Dashboard
+•	Rename “Overview” page to “Dashboard” 
+•	Redesign it as a high-level summary page 
+•	Display only: 
+o	Key metrics (total plants/zones, active pumps, alerts count) 
+o	Recent activity 
+o	Quick status indicators 
+•	❗ Do NOT repeat detailed data that exists on: 
+o	Sensor Data page 
+o	Pump Control page 
+o	Zone page
+👉 Dashboard should be summary only, not detailed view 
+________________________________________
+🔌 3. Pump Control Page Updates
+•	Maintain fixed positions of pumps in UI 
+o	Pump cards should NOT rearrange or change position after ON/OFF operations 
+•	Remove: 
+o	❌ “System Summary” section at the bottom of the page 
+•	Keep: 
+o	Individual pump controls 
+o	Status indicators 
+________________________________________
+🌦️ 4. AI Engine → Weather Data Page
+•	Add: 
+o	Location which fetches the actual coordinates (latitude and longitude) with name of location
+o	A manual ‘Relocate’ button which takes input coordinate and will edit the current location
+•	Rename “AI Engine” page to “Weather Data” 
+•	Replace AI-related content with: 
+o	Current weather (temp, humidity, wind speed, rain chance)
+o	Forecast data 
+o	Rain probability 
+•	Move: 
+o	❌ Zone-by-zone recommendations → to Zone Page 
+________________________________________
+🌱 5. Zone Page Updates
+•	Add: 
+o	Zone-wise (plant-wise) recommendations previously in AI Engine 
+•	Each zone should display: 
+o	Soil moisture 
+o	Pump status 
+o	Recommendation (e.g., irrigate / skip / partial) 
+________________________________________
+📊 6. Sensor Data Page Updates
+•	Add: 
+o	Graph for water logging sensor with Expand/Collapse feature
+o	Expand/Collapse feature for soil moisture trend graph, temp & humidity graph as well as tank water level graph
+	Use an arrow icon (⬇️/⬆️ toggle) 
+	Smooth UI interaction 
+________________________________________
+🚨 7. Alerts Page Updates
+•	Add: 
+o	Water logging alerts (moved from Sensor Data page) 
+•	Alerts should include: 
+o	Tank empty 
+o	Water logging detected 
+o	Abnormal sensor readings 
+________________________________________
+🌾 8. Crop & Soil Page Updates
+•	Initially show: 
+o	Dropdown / selection UI for: 
+	Crop type 
+	Soil type 
+•	Only AFTER selection: 
+o	Display detailed data such as: 
+	Water requirements 
+	Soil water retention 
+	Ideal moisture range 
+	Growth-related info 
+👉 No data should be visible before selection
+________________________________________
+🗄️ 9. Database Updates
+•	Update schema if required to support: 
+o	Zone-wise recommendations (moved from AI to Zone) 
+o	Weather data storage with location and coordinates (new page) 
+o	Alerts (including water logging) 
+o	Crop & soil detailed datasets
+o	In ‘timestamp and time zone’ show the real-time  
+•	Ensure: 
+o	Proper mapping between zones (plants), sensors, and pumps 
+o	Historical data remains intact 
+________________________________________
+⚙️ 10. General Requirements
+•	Maintain: 
+o	Clean and responsive UI 
+o	Consistent design across all pages 
+•	Ensure: 
+o	No duplicate data across pages 
+o	Proper navigation flow 
+o	State consistency (no UI glitches after actions) 
+
+🌿 11. Crop Health Page (New Section)
+•	Add a new page titled “Crop Health” 
+________________________________________
+📊 Features to Include:
+1. Health Indicators
+•	NDVI (Normalized Difference Vegetation Index) 
+•	Soil Health Index 
+•	Water Stress Level 
+•	Growth Rate 
+________________________________________
+2. Data Visualization
+•	📈 Monthly Health Trends Graph 
+o	NDVI, soil moisture, growth trends 
+•	🕸️ Radar Chart: 
+o	Growth 
+o	Moisture 
+o	Temperature 
+o	Nutrients 
+o	Sunlight 
+o	Peak Risk 
+________________________________________
+3. Predictive Insights
+•	Generate: 
+o	Crop health prediction 
+o	Risk analysis (drought, overwatering, disease) 
+o	Future growth trends 
+•	Display: 
+o	Text recommendations 
+o	Status (Good / Moderate / Critical) 
+________________________________________
+4. Data Sources Integration
+•	NDVI → Satellite imagery API 
+•	Soil Health → Sensor + soil database 
+•	Weather → Weather API 
+•	Growth → Historical trends 
+________________________________________
+🗄️ Database Updates (Crop Health)
+•	Store: 
+o	NDVI history 
+o	Health metrics 
+o	Prediction outputs 
+•	Ensure time-series compatibility
+
+________________________________________
+
+💡 Optional Enhancement (if supported)
+•	Add smooth transitions/animations for: 
+o	Graph expand/collapse 
+o	Page navigation 
+•	Ensure real-time updates (if WebSocket already implemented)

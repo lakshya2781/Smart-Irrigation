@@ -5,27 +5,29 @@ import {
   Layers,
   Sliders,
   BarChart2,
-  Brain,
+  Cloud,
   Bell,
   History,
   Leaf,
   Wifi,
   WifiOff,
   Radio,
+  HeartPulse,
 } from "lucide-react";
 import { useGetDashboardSummary } from "@workspace/api-client-react";
 import { Badge } from "@/components/ui/badge";
 import { useEffect, useState, useRef } from "react";
 
 const navItems = [
-  { href: "/", label: "Overview", icon: LayoutDashboard },
-  { href: "/zones", label: "Zones", icon: Layers },
-  { href: "/control", label: "Pump Control", icon: Sliders },
-  { href: "/sensors", label: "Sensor Data", icon: BarChart2 },
-  { href: "/ai", label: "AI Engine", icon: Brain },
-  { href: "/alerts", label: "Alerts", icon: Bell },
-  { href: "/history", label: "History", icon: History },
-  { href: "/crops", label: "Crop & Soil", icon: Leaf },
+  { href: "/",         label: "Dashboard",    icon: LayoutDashboard },
+  { href: "/zones",    label: "Zones",        icon: Layers          },
+  { href: "/control",  label: "Pump Control", icon: Sliders         },
+  { href: "/sensors",  label: "Sensor Data",  icon: BarChart2       },
+  { href: "/ai",       label: "Weather Data", icon: Cloud           },
+  { href: "/alerts",   label: "Alerts",       icon: Bell            },
+  { href: "/history",  label: "History",      icon: History         },
+  { href: "/crops",    label: "Crop & Soil",  icon: Leaf            },
+  { href: "/crop-health", label: "Crop Health", icon: HeartPulse    },
 ];
 
 function useWsStatus() {
@@ -105,15 +107,15 @@ export default function Sidebar() {
         <div className="flex items-center gap-2 text-xs">
           <Radio className={cn(
             "w-3 h-3",
-            wsStatus === "connected" ? "text-primary" :
-            wsStatus === "connecting" ? "text-amber-400" : "text-muted-foreground"
+            wsStatus === "connected"    ? "text-primary" :
+            wsStatus === "connecting"   ? "text-amber-400" : "text-muted-foreground"
           )} />
           <span className={cn(
             "text-[10px]",
-            wsStatus === "connected" ? "text-primary" :
-            wsStatus === "connecting" ? "text-amber-400" : "text-muted-foreground"
+            wsStatus === "connected"    ? "text-primary" :
+            wsStatus === "connecting"   ? "text-amber-400" : "text-muted-foreground"
           )}>
-            {wsStatus === "connected" ? "Live stream active" :
+            {wsStatus === "connected"  ? "Live stream active" :
              wsStatus === "connecting" ? "Connecting…" : "Stream offline"}
           </span>
           {wsStatus === "connected" && (

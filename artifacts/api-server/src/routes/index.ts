@@ -11,6 +11,7 @@ import cropsRouter from "./crops";
 import soilTypesRouter from "./soilTypes";
 import aiRouter from "./ai";
 import waterUsageRouter from "./waterUsage";
+import cropHealthRouter from "./cropHealth";
 
 const router: IRouter = Router();
 
@@ -26,5 +27,6 @@ router.use(cropsRouter);
 router.use(soilTypesRouter);
 router.use(aiRouter);
 router.use(waterUsageRouter);
+router.use(cropHealthRouter);
 
 export default router;

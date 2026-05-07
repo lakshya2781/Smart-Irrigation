@@ -21,9 +21,12 @@ import type {
   Alert,
   CreateIrrigationLogBody,
   Crop,
+  CropHealthMetrics,
+  CropHealthRecord,
   DashboardSummary,
   Esp32IngestBody,
   GetAlertsParams,
+  GetCropHealthHistoryParams,
   GetIrrigationLogsParams,
   GetSensorHistoryParams,
   GetWaterUsageStatsParams,
@@ -31,12 +34,14 @@ import type {
   HealthStatus,
   IngestResponse,
   IrrigationLog,
+  LocationSettings,
   MoistureTrendPoint,
   Pump,
   PumpControlBody,
   SensorHistoryRecord,
   SensorReadings,
   SoilType,
+  UpdateLocationBody,
   UpdateZoneBody,
   WaterUsageStat,
   WeatherData,
@@ -960,6 +965,167 @@ export const useIngestEsp32Data = <
 };
 
 /**
+ * @summary Get current location settings
+ */
+export const getGetWeatherLocationUrl = () => {
+  return `/api/weather/location`;
+};
+
+export const getWeatherLocation = async (
+  options?: RequestInit,
+): Promise<LocationSettings> => {
+  return customFetch<LocationSettings>(getGetWeatherLocationUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetWeatherLocationQueryKey = () => {
+  return [`/api/weather/location`] as const;
+};
+
+export const getGetWeatherLocationQueryOptions = <
+  TData = Awaited<ReturnType<typeof getWeatherLocation>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getWeatherLocation>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetWeatherLocationQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getWeatherLocation>>
+  > = ({ signal }) => getWeatherLocation({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getWeatherLocation>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetWeatherLocationQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getWeatherLocation>>
+>;
+export type GetWeatherLocationQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get current location settings
+ */
+
+export function useGetWeatherLocation<
+  TData = Awaited<ReturnType<typeof getWeatherLocation>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getWeatherLocation>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetWeatherLocationQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Update location coordinates
+ */
+export const getUpdateWeatherLocationUrl = () => {
+  return `/api/weather/location`;
+};
+
+export const updateWeatherLocation = async (
+  updateLocationBody: UpdateLocationBody,
+  options?: RequestInit,
+): Promise<LocationSettings> => {
+  return customFetch<LocationSettings>(getUpdateWeatherLocationUrl(), {
+    ...options,
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(updateLocationBody),
+  });
+};
+
+export const getUpdateWeatherLocationMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateWeatherLocation>>,
+    TError,
+    { data: BodyType<UpdateLocationBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateWeatherLocation>>,
+  TError,
+  { data: BodyType<UpdateLocationBody> },
+  TContext
+> => {
+  const mutationKey = ["updateWeatherLocation"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateWeatherLocation>>,
+    { data: BodyType<UpdateLocationBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return updateWeatherLocation(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateWeatherLocationMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateWeatherLocation>>
+>;
+export type UpdateWeatherLocationMutationBody = BodyType<UpdateLocationBody>;
+export type UpdateWeatherLocationMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Update location coordinates
+ */
+export const useUpdateWeatherLocation = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateWeatherLocation>>,
+    TError,
+    { data: BodyType<UpdateLocationBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateWeatherLocation>>,
+  TError,
+  { data: BodyType<UpdateLocationBody> },
+  TContext
+> => {
+  return useMutation(getUpdateWeatherLocationMutationOptions(options));
+};
+
+/**
  * @summary Get current weather data
  */
 export const getGetCurrentWeatherUrl = () => {
@@ -1754,6 +1920,181 @@ export function useGetAiRecommendations<
   request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetAiRecommendationsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get current crop health metrics per zone
+ */
+export const getGetCropHealthUrl = () => {
+  return `/api/crop-health`;
+};
+
+export const getCropHealth = async (
+  options?: RequestInit,
+): Promise<CropHealthMetrics[]> => {
+  return customFetch<CropHealthMetrics[]>(getGetCropHealthUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetCropHealthQueryKey = () => {
+  return [`/api/crop-health`] as const;
+};
+
+export const getGetCropHealthQueryOptions = <
+  TData = Awaited<ReturnType<typeof getCropHealth>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getCropHealth>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetCropHealthQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getCropHealth>>> = ({
+    signal,
+  }) => getCropHealth({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getCropHealth>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetCropHealthQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getCropHealth>>
+>;
+export type GetCropHealthQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get current crop health metrics per zone
+ */
+
+export function useGetCropHealth<
+  TData = Awaited<ReturnType<typeof getCropHealth>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getCropHealth>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetCropHealthQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get historical crop health data
+ */
+export const getGetCropHealthHistoryUrl = (
+  params?: GetCropHealthHistoryParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/crop-health/history?${stringifiedParams}`
+    : `/api/crop-health/history`;
+};
+
+export const getCropHealthHistory = async (
+  params?: GetCropHealthHistoryParams,
+  options?: RequestInit,
+): Promise<CropHealthRecord[]> => {
+  return customFetch<CropHealthRecord[]>(getGetCropHealthHistoryUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetCropHealthHistoryQueryKey = (
+  params?: GetCropHealthHistoryParams,
+) => {
+  return [`/api/crop-health/history`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetCropHealthHistoryQueryOptions = <
+  TData = Awaited<ReturnType<typeof getCropHealthHistory>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetCropHealthHistoryParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getCropHealthHistory>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetCropHealthHistoryQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getCropHealthHistory>>
+  > = ({ signal }) =>
+    getCropHealthHistory(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getCropHealthHistory>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetCropHealthHistoryQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getCropHealthHistory>>
+>;
+export type GetCropHealthHistoryQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get historical crop health data
+ */
+
+export function useGetCropHealthHistory<
+  TData = Awaited<ReturnType<typeof getCropHealthHistory>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetCropHealthHistoryParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getCropHealthHistory>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetCropHealthHistoryQueryOptions(params, options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

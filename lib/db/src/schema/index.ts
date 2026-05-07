@@ -6,3 +6,5 @@ export * from "./sensorReadings";
 export * from "./irrigationLogs";
 export * from "./alerts";
 export * from "./weatherCache";
+export * from "./cropHealth";
+export * from "./locationSettings";

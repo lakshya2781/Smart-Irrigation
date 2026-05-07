@@ -173,37 +173,6 @@ export default function Control() {
             })}
       </div>
 
-      {/* System Overview Table */}
-      <Card className="border-card-border">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-semibold flex items-center gap-2">
-            <Sliders className="w-4 h-4 text-primary" />
-            System Summary
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-0 divide-y divide-border">
-            {(pumps.data ?? []).map((pump) => (
-              <div key={pump.id} className="flex items-center justify-between py-2.5 text-xs">
-                <span className="text-muted-foreground">{pump.name}</span>
-                <span>{pump.zoneName}</span>
-                <span className="text-muted-foreground">{pump.driverChannel}</span>
-                <span>{pump.runtimeToday.toFixed(0)} min today</span>
-                <Badge
-                  variant="outline"
-                  className={cn(
-                    "text-[10px] px-1.5 py-0 h-4",
-                    pump.status === "on" ? "text-primary border-primary/40" :
-                    pump.status === "override" ? "text-amber-400 border-amber-400/40" : "text-muted-foreground"
-                  )}
-                >
-                  {pump.status.toUpperCase()}
-                </Badge>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 }
